@@ -9,6 +9,10 @@ public:
     virtual std::ostream& print() = 0;
 };
 
+struct ExpressionNode : public ASTNode {
+    virtual std::ostream& print() = 0;
+};
+
 struct StatementNode : public ASTNode {
     virtual std::ostream& print() = 0;
 };
@@ -20,16 +24,16 @@ struct CodeBlockNode : public StatementNode {
 };
 
 struct AssignmentNode : public StatementNode {
-    char* name;
-    std::optional<ExpressionNode*> value;
+    std::string name;
+    ExpressionNode* value;
 
     std::ostream& print();
+
+    AssignmentNode(std::string name, ExpressionNode* value) : name(name), value(value) {}
 };
 
 // exprs
-class ExpressionNode : public ASTNode {
-    virtual std::ostream& print() = 0;
-};
+
 
 enum ExpressionOperation {
     ADD,
@@ -49,6 +53,8 @@ struct BinOpNode : public ExpressionNode {
 
 struct LiteralNumberNode : public ExpressionNode {
     double value;
+
+    LiteralNumberNode(double value) : value(value) {}
 
     std::ostream& print();
 };

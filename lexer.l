@@ -4,6 +4,10 @@
 
 extern int yyparse(void);
 
+void scan_string(const char* str)
+{
+    yy_switch_to_buffer(yy_scan_string(str));
+}
 %}
 
 %%
@@ -31,6 +35,7 @@ extern int yyparse(void);
 ">"                { return GREATER_THAN;}
 "{"                { return LCURLY;}
 "}"                { return RCURLY;}
+<<EOF>>            { return END_OF_FILE;}
 [ \t\n]+           { /* Skip whitespace */ }
 .                  { /* Skip any other character */ }
 

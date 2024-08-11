@@ -8,7 +8,8 @@
 void yyerror(const char *s);
 int yylex(void);
 
-StatementNode root = StatementNode();
+StatementNode* root;
+
 
 %}
 
@@ -16,14 +17,18 @@ StatementNode root = StatementNode();
     double float_val;
     char* str;
     char operation;
+    LiteralNumberNode* number;
+    StatementNode* stmt;
+    ExpressionNode* expr;
 }
 
 %token <float_val> NUMBER
 %token <str> IDENT
 %token ASSIGN LBRACKET RBRACKET COMMA LPAREN RPAREN LESS_THAN GREATER_THAN LCURLY RCURLY EQUALITY INEQUALITY
 %token SLASH PLUS MINUS STAR HASH
-
-%type <float_val> number_literal
+%type <number> number_literal
+%type <stmt> statement
+%type <expr> expression
 
 %token LEN DIM
 
@@ -44,7 +49,11 @@ assignment:
     ;
 
 statement:
-    IDENT assignment expression |
+    IDENT assignment expression {
+        $$ = new AssignmentNode(std::string($1), $3);
+
+        $$->print();
+    } |
     for_each |
     function_call |
     %empty
@@ -52,7 +61,7 @@ statement:
 
 expression:
     array |
-    number_literal |
+    number_literal { $$ = $1; } |
     binary_operation |
     IDENT { printf("identifier %s\n", $1); } |
     expression_function |
@@ -102,7 +111,9 @@ binary_operation:
     ;
 
 number_literal:
-    NUMBER { $$ = $1; }
+    NUMBER { 
+        $$ = new LiteralNumberNode($1);
+    }
 
 array:
     LBRACKET elements RBRACKET { printf("Array with elements\n"); } |

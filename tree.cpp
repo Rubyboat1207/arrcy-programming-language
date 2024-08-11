@@ -6,7 +6,7 @@ std::ostream& BinOpNode::print() {
 }
 
 std::ostream& LiteralNumberNode::print() {
-    return std::cout;
+    return std::cout << value << std::endl;
 }
 
 std::ostream& VariableNode::print() {
@@ -14,9 +14,11 @@ std::ostream& VariableNode::print() {
 }
 
 std::ostream& AssignmentNode::print() {
+    std::cout << name << " = ";
+    value->print();
     return std::cout;
 }
 
-std::ostream& AssignmentNode::print() {
+std::ostream& CodeBlockNode::print() {
     return std::cout;
 }

@@ -2,7 +2,10 @@
 #include "generated/parser.tab.hpp"
 #include <iostream>
 
+void scan_string(const char* str);
+
 int main() {
-    yyparse();  // Parse the input and build the AST
+    scan_string("x = 2;");
+    yyparse();
     return 0;
 }
