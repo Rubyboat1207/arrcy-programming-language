@@ -1,0 +1,15 @@
+
+BIN = bin
+
+run: build
+	./$(BIN)/main.exe
+
+build: $(BIN) build_lexparse
+	g++ -o2 -mavx2 -march=native -std=c++17 -Wno-register tree.cpp generated/lex.yy.c generated/parser.tab.cpp main.cpp -o $(BIN)/main.exe
+
+build_lexparse:
+	win_bison -d parser.y -o generated/parser.tab.cpp
+	win_flex -o generated/lex.yy.c lexer.l
+
+$(BIN):
+	mkdir bin

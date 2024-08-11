@@ -1,0 +1,39 @@
+%{
+#include "../tree.hpp"
+#include "parser.tab.hpp"
+
+extern int yyparse(void);
+
+%}
+
+%%
+
+[0-9]+"."[0-9]+    { yylval.float_val = atof(yytext); return NUMBER; }
+[0-9]+             { yylval.float_val = atof(yytext); return NUMBER; }
+"len"              { return LEN; }
+"dim"              { return DIM; }
+[a-zA-Z_][a-zA-Z0-9_]* { yylval.str = strdup(yytext); return IDENT; }
+"["                { return LBRACKET; }
+"]"                { return RBRACKET; }
+","                { return COMMA; }
+"=="               { return EQUALITY; }
+"!="               { return INEQUALITY; }
+"="                { return ASSIGN; }
+";"                { return ';'; }
+"/"                { return SLASH;}
+"+"                { return PLUS;}
+"-"                { return MINUS;}
+"*"                { return STAR;}
+"#"                { return HASH;}
+"("                { return LPAREN;}
+")"                { return RPAREN;}
+"<"                { return LESS_THAN;}
+">"                { return GREATER_THAN;}
+"{"                { return LCURLY;}
+"}"                { return RCURLY;}
+[ \t\n]+           { /* Skip whitespace */ }
+.                  { /* Skip any other character */ }
+
+%%
+
+int yywrap(void) { return 0; }
