@@ -13,10 +13,10 @@ std::ostream& VariableNode::print() {
     return std::cout;
 }
 
-std::ostream& DeclarationNode::print() {
+std::ostream& AssignmentNode::print() {
     return std::cout;
 }
 
-std::ostream& DeclarationNode::print() {
+std::ostream& AssignmentNode::print() {
     return std::cout;
 }

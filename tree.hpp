@@ -9,13 +9,26 @@ public:
     virtual std::ostream& print() = 0;
 };
 
-class RootNode {
-public:
-    std::vector<ASTNode*> children;
+struct StatementNode : public ASTNode {
+    virtual std::ostream& print() = 0;
+};
 
-    RootNode() {
-        children = std::vector<ASTNode*>();
-    }
+struct CodeBlockNode : public StatementNode {
+    std::vector<StatementNode*> stmts;
+    
+    std::ostream& print();
+};
+
+struct AssignmentNode : public StatementNode {
+    char* name;
+    std::optional<ExpressionNode*> value;
+
+    std::ostream& print();
+};
+
+// exprs
+class ExpressionNode : public ASTNode {
+    virtual std::ostream& print() = 0;
 };
 
 enum ExpressionOperation {
@@ -24,11 +37,6 @@ enum ExpressionOperation {
     DIVIDE,
     MULTIPLY,
     ACCESS
-};
-
-// exprs
-class ExpressionNode : public ASTNode {
-    virtual std::ostream& print() = 0;
 };
 
 struct BinOpNode : public ExpressionNode {
@@ -53,14 +61,5 @@ struct VariableNode : public ExpressionNode {
 
 struct ArrayNode : public ExpressionNode {
     std::vector<ExpressionNode*> values;
-    std::ostream& print();
-};
-
-// statements
-
-struct DeclarationNode : public ASTNode {
-    char* name;
-    std::optional<ExpressionNode*> value;
-
     std::ostream& print();
 };

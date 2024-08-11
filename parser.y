@@ -8,7 +8,7 @@
 void yyerror(const char *s);
 int yylex(void);
 
-RootNode root = RootNode();
+StatementNode root = StatementNode();
 
 %}
 
