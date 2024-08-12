@@ -70,6 +70,8 @@ struct BinOpNode : public ExpressionNode {
     ExpressionNode* b;
     ExpressionOperation operation;
 
+    BinOpNode(ExpressionNode* a, ExpressionNode* b, ExpressionOperation operation) : a(a), b(b), operation(operation) {}
+
     std::ostream& print(std::ostream& os) const override;
 };
 
@@ -85,11 +87,46 @@ struct VariableNode : public ExpressionNode {
     std::string s;
 
     std::ostream& print(std::ostream& os) const override;
+
+    VariableNode(std::string s) : s(s) {}
+};
+
+struct ArrayElements {
+    std::vector<ExpressionNode*> expressions;
 };
 
 struct ArrayNode : public ExpressionNode {
-    std::vector<ExpressionNode*> values;
+    ArrayElements* values = nullptr;
     std::ostream& print(std::ostream& os) const override;
+
+    ArrayNode(ArrayElements* values) : values(values) {}
+};
+
+enum class ExpressionFunctionType {
+    MAP,
+    FILTER,
+    REDUCE
+};
+std::ostream& operator<<(std::ostream& os, ExpressionFunctionType op);
+
+struct ExpressionFunctionNode : public ExpressionNode {
+    ExpressionFunctionType type;
+    VariableNode* internal_variable;
+    ExpressionNode* action;
+    ExpressionNode* array;
+    // nullable
+    VariableNode* index_variable;
+
+    std::ostream& print(std::ostream& os) const override;
+
+    ExpressionFunctionNode(
+        ExpressionFunctionType type, ExpressionNode* array, 
+        VariableNode* internal_variable, VariableNode* index_variable, 
+        ExpressionNode* action) : 
+        
+        type(type), array(array), 
+        internal_variable(internal_variable), action(action), 
+        index_variable(index_variable) {}
 };
 
 #endif

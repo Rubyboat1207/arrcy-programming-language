@@ -19,6 +19,15 @@ std::ostream& operator<<(std::ostream& os, ExpressionOperation op) {
     }
 }
 
+std::ostream& operator<<(std::ostream& os, ExpressionFunctionType op) {
+    switch (op) {
+        case ExpressionFunctionType::FILTER: return os << "/";
+        case ExpressionFunctionType::MAP:    return os << "#";
+        case ExpressionFunctionType::REDUCE: return os << "<";
+        default:                             return os << "???";
+    }
+}
+
 std::ostream& operator<<(std::ostream& os, const ASTNode& obj) {
     return obj.print(os);
 }
@@ -32,7 +41,26 @@ std::ostream& LiteralNumberNode::print(std::ostream& os) const {
 }
 
 std::ostream& VariableNode::print(std::ostream& os) const {
-    return std::cout;
+    return os << s;
+}
+
+std::ostream& ArrayNode::print(std::ostream& os) const {
+    os << "[";
+
+    if(values != nullptr) {
+        int i = 0;
+        int size = values->expressions.size();
+        for(int i = 0; i < size; i++) {
+            auto element = values->expressions[i];
+            if(i != size - 1) {
+                os << *element << ",";
+            }else {
+                os << *element;
+            }
+        }
+    }
+
+    return os << "]";
 }
 
 std::ostream& AssignmentNode::print(std::ostream& os) const {
@@ -51,7 +79,7 @@ CodeBlockNode* AssignmentNode::append(StatementNode *node)
 
 std::ostream& CodeBlockNode::print(std::ostream& os) const {
     for(auto stmt : stmts) {
-        os << *stmt << std::endl;
+        os << *stmt << ";" << std::endl;
     }
 
     return os;
@@ -62,4 +90,15 @@ CodeBlockNode* CodeBlockNode::append(StatementNode *node)
     stmts.push_back(node);
 
     return this;
+}
+
+std::ostream &ExpressionFunctionNode::print(std::ostream &os) const
+{
+    os << "(" << *array << ")" << type << *internal_variable;
+
+    if(index_variable != nullptr) {
+        os << ", " << *index_variable;
+    }
+
+    return os << "{" << *action << "}";
 }

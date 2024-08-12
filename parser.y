@@ -22,6 +22,9 @@ StatementNode* root;
     StatementNode* stmt;
     ExpressionNode* expr;
     BinOpNode* binop;
+    ArrayElements* expressions;
+    ArrayNode* arr;
+    VariableNode* var;
 }
 
 %token <float_val> NUMBER
@@ -30,8 +33,11 @@ StatementNode* root;
 %token SLASH PLUS MINUS STAR HASH
 %type <number> number_literal
 %type <stmt> statement
-%type <expr> expression
+%type <expr> expression array_access expression_function
 %type <binop> binary_operation
+%type <expressions> elements
+%type <arr> array;
+%type <var> identifier
 
 %token LEN DIM
 
@@ -62,7 +68,7 @@ assignment:
 
 statement:
     IDENT assignment expression {
-        $$ = new AssignmentNode(std::string($1), $3);
+        $$ = new AssignmentNode($1, $3);
     } |
     for_each |
     function_call |
@@ -73,11 +79,17 @@ statement:
     }
     ;
 
+identifier:
+    IDENT {
+        $$ = new VariableNode($1);
+    }
+    ;
+
 expression:
     array |
-    number_literal { $$ = $1; } |
+    number_literal |
     binary_operation |
-    IDENT { printf("identifier %s\n", $1); } |
+    identifier |
     expression_function |
     property_access |
     function_call |
@@ -85,20 +97,32 @@ expression:
     ;
 
 array_access: 
-    IDENT LBRACKET expression RBRACKET { printf("array access of %s\n", $1); }
+    IDENT LBRACKET expression RBRACKET { 
+        $$ = new BinOpNode(new VariableNode($1), $3, ExpressionOperation::ACCESS);
+    }
     ;
 
 expression_function:
-    LPAREN IDENT RPAREN HASH IDENT LCURLY expression RCURLY { printf("mapping function with internal var called %s\n", $5); } | // (x)#a{ a + 5 };
-    LPAREN IDENT RPAREN HASH IDENT COMMA IDENT LCURLY expression RCURLY { printf("mapping function with internal var called %s, %s\n", $5, $7); } | // (x)#a{ a + 5 };
-    LPAREN IDENT RPAREN SLASH IDENT LCURLY expression RCURLY { printf("filtering function with internal var called %s\n", $5); } | // (x)/a{ a + 5 };
-    LPAREN IDENT RPAREN SLASH IDENT COMMA IDENT LCURLY expression RCURLY { printf("filtering function with internal var called %s, %s\n", $5, $7); } | // (x)/a{ a + 5 };
-    LPAREN IDENT RPAREN LESS_THAN IDENT COMMA IDENT GREATER_THAN LCURLY expression RCURLY { printf("reduce function with internal vars called %s, %s\n", $5, $7); } // (x)<acc, v>{ acc + v };
+    LPAREN expression RPAREN HASH identifier LCURLY expression RCURLY { 
+        $$ = new ExpressionFunctionNode(ExpressionFunctionType::MAP, $2, $5, nullptr, $7);
+    } | // (x)#a{ a + 5 };
+    LPAREN expression RPAREN HASH identifier COMMA identifier LCURLY expression RCURLY { 
+        $$ = new ExpressionFunctionNode(ExpressionFunctionType::MAP, $2, $5, $7, $9);
+    } | // (x)#a, i{ a + 5 };
+    LPAREN expression RPAREN SLASH identifier LCURLY expression RCURLY { 
+        $$ = new ExpressionFunctionNode(ExpressionFunctionType::FILTER, $2, $5, nullptr, $7);
+    } | // (x)/a{ a + 5 };
+    LPAREN expression RPAREN SLASH identifier COMMA identifier LCURLY expression RCURLY { 
+        $$ = new ExpressionFunctionNode(ExpressionFunctionType::FILTER, $2, $5, $7, $9);
+    }  | // (x)/a{ a + 5 };
+    LPAREN expression RPAREN LESS_THAN identifier COMMA identifier GREATER_THAN LCURLY expression RCURLY { 
+        $$ = new ExpressionFunctionNode(ExpressionFunctionType::REDUCE, $2, $5, $7, $10);
+    }  // (x)<acc, v>{ acc + v };
     ;
 
 for_each:
-    LPAREN IDENT RPAREN STAR IDENT COMMA IDENT STAR LCURLY statements RCURLY { printf("for each function with value and index vars called %s, %s\n", $5, $7); } |
-    LPAREN IDENT RPAREN STAR IDENT LCURLY statements RCURLY { printf("for each function with value var called %s\n", $5); }
+    LPAREN expression RPAREN STAR IDENT COMMA IDENT STAR LCURLY statements RCURLY { printf("for each function with value and index vars called %s, %s\n", $5, $7); } |
+    LPAREN expression RPAREN STAR IDENT LCURLY statements RCURLY { printf("for each function with value var called %s\n", $5); }
     ;
 
 property_access:
@@ -113,64 +137,34 @@ function_call:
 
 binary_operation:
     expression SLASH expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::DIVIDE;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::DIVIDE);
     } |
     expression PLUS  expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::ADD;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::ADD);
     } |
     expression MINUS expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::SUBTRACT;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::SUBTRACT);
     } |
     expression STAR expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::MULTIPLY;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::MULTIPLY);
     } |
     expression LESS_THAN expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::LT;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::LT);
     } |
     expression GREATER_THAN expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::GT;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::GT);
     } |
     expression GREATER_THAN ASSIGN expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $4;
-        $$->operation = ExpressionOperation::GTEQ;
+        $$ = new BinOpNode($1, $4, ExpressionOperation::GTEQ);
     } |
     expression LESS_THAN ASSIGN expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $4;
-        $$->operation = ExpressionOperation::LTEQ;
+        $$ = new BinOpNode($1, $4, ExpressionOperation::LTEQ);
     } |
     expression EQUALITY expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::EQ;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::EQ);
     } |
     expression INEQUALITY expression { 
-        $$ = new BinOpNode();
-        $$->a = $1;
-        $$->b = $3;
-        $$->operation = ExpressionOperation::INEQ;
+        $$ = new BinOpNode($1, $3, ExpressionOperation::INEQ);
     } 
     ;
 
@@ -180,13 +174,24 @@ number_literal:
     }
 
 array:
-    LBRACKET elements RBRACKET { printf("Array with elements\n"); } |
-    LBRACKET RBRACKET { printf("empty array\n"); }
+    LBRACKET elements RBRACKET {
+        $$ = new ArrayNode($2);
+    } |
+    LBRACKET RBRACKET { 
+        $$ = new ArrayNode(nullptr);
+    }
     ;
 
 elements:
-    expression |
-    elements COMMA expression
+    expression {
+        $$ = new ArrayElements();
+        $$->expressions.push_back($1);
+    } |
+    elements COMMA expression {
+        $1->expressions.push_back($3);
+
+        $$ = $1;
+    }
     ;
 
 %%
