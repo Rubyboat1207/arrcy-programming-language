@@ -1,6 +1,8 @@
 #include "tree.hpp"
 #include<iostream>
 
+//#define UGLY_PRINT
+
 
 std::ostream& operator<<(std::ostream& os, ExpressionOperation op) {
     switch (op) {
@@ -33,19 +35,35 @@ std::ostream& operator<<(std::ostream& os, const ASTNode& obj) {
 }
 
 std::ostream& BinOpNode::print(std::ostream& os) const {
-    return os << *a << operation << *b;
+    #ifdef UGLY_PRINT
+        return os << "BinOpNode(" << *a << operation << *b << ")";
+    #else
+        return os<< *a << operation << *b;
+    #endif
 }
 
 std::ostream& LiteralNumberNode::print(std::ostream& os) const {
-    return os << value;
+    #ifdef UGLY_PRINT
+        return os << "LitNum(" << value << ")";
+    #else
+        return os << value;
+    #endif
 }
 
 std::ostream& VariableNode::print(std::ostream& os) const {
-    return os << s;
+    #ifdef UGLY_PRINT
+        return os << "Var(" << s << ")";
+    #else
+        return os << s;
+    #endif
 }
 
 std::ostream& ArrayNode::print(std::ostream& os) const {
-    os << "[";
+    #ifdef UGLY_PRINT
+        os << "ArrayNode[";
+    #else
+        os << "[";
+    #endif
 
     if(values != nullptr) {
         int i = 0;
@@ -64,29 +82,54 @@ std::ostream& ArrayNode::print(std::ostream& os) const {
 }
 
 std::ostream& AssignmentNode::print(std::ostream& os) const {
-    return os << name << " = " << *value;
+    #ifdef UGLY_PRINT
+        return os << "AssignmentNode(" << name << " = " << *value << ")";
+    #else
+        return os << name << " = " << *value;
+    #endif
+    
 }
 
-CodeBlockNode* AssignmentNode::append(StatementNode *node)
+CodeBlockNode* StatementNode::append(StatementNode *node)
 {
     CodeBlockNode* block = new CodeBlockNode();
 
-    block->stmts.push_back(this);
-    block->stmts.push_back(node);
+    block->append(this)->append(node);
 
     return block;
 }
 
 std::ostream& CodeBlockNode::print(std::ostream& os) const {
+    #ifdef UGLY_PRINT
+        std::cout << "begin" << std::endl;
+        std::cout << "statement size " << stmts.size() << std::endl;
+    #endif
+
     for(auto stmt : stmts) {
         os << *stmt << ";" << std::endl;
     }
 
+    #ifdef UGLY_PRINT
+        std::cout << "end" << std::endl;
+    #endif
     return os;
 }
 
 CodeBlockNode* CodeBlockNode::append(StatementNode *node)
 {
+    if(node == nullptr) {
+        return this;
+    }
+    // check if node is already in the list
+    // TODO: fix node duplication issue in parser
+    // eventually, this should be removed
+    // do in reverse for efficiency
+    for(int i = stmts.size() - 1; i >= 0; i--) {
+        auto stmt = stmts[i];
+        if(stmt == node) {
+            return this;
+        }
+    }
     stmts.push_back(node);
 
     return this;
@@ -94,11 +137,38 @@ CodeBlockNode* CodeBlockNode::append(StatementNode *node)
 
 std::ostream &ExpressionFunctionNode::print(std::ostream &os) const
 {
-    os << "(" << *array << ")" << type << *internal_variable;
+    #ifdef UGLY_PRINT
+        os << "ExpressionFunction((" << *array << ")" << type << *internal_variable;
+    #else
+        os << "(" << *array << ")" << type << *internal_variable;
+    #endif
 
     if(index_variable != nullptr) {
         os << ", " << *index_variable;
     }
 
-    return os << "{" << *action << "}";
+    #ifdef UGLY_PRINT
+        return os << "{" << *action << "})";
+    #else
+        return os << "{" << *action << "}";
+    #endif
+}
+
+std::ostream &StatementFunctionNode::print(std::ostream &os) const
+{
+    #ifdef UGLY_PRINT
+        os << "StatementFunction((" << *array << ")" << *internal_variable;
+    #else
+        os << "(" << *array << ")" << *internal_variable;
+    #endif
+
+    if(index_variable != nullptr) {
+        os << ", " << *index_variable;
+    }
+
+    #ifdef UGLY_PRINT
+        return os << "{" << *action << "})";
+    #else
+        return os << "{\n" << *action << "}";
+    #endif
 }

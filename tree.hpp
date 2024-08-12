@@ -11,6 +11,8 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const ASTNode& obj);
 };
 
+// Abstract Nodes
+
 struct ExpressionNode : public ASTNode {
     virtual std::ostream& print(std::ostream& os) const override = 0;
 };
@@ -20,8 +22,10 @@ struct CodeBlockNode;
 struct StatementNode : public ASTNode {
     virtual std::ostream& print(std::ostream& os) const override = 0;
 
-    virtual CodeBlockNode* append(StatementNode* node) = 0;
+    virtual CodeBlockNode* append(StatementNode* node);
 };
+
+// stmts
 
 struct CodeBlockNode : public StatementNode {
     std::vector<StatementNode*> stmts;
@@ -36,11 +40,9 @@ struct AssignmentNode : public StatementNode {
     ExpressionNode* value;
 
     std::ostream& print(std::ostream& os) const override;
-    CodeBlockNode* append(StatementNode* node);
 
     AssignmentNode(std::string name, ExpressionNode* value) : name(name), value(value) {}
 };
-
 // exprs
 
 
@@ -64,6 +66,12 @@ enum class ExpressionOperation {
 };
 std::ostream& operator<<(std::ostream& os, ExpressionOperation op);
 
+struct ModificationAssign {
+    ExpressionOperation operation;
+    ExpressionNode* value;
+
+    ModificationAssign(ExpressionOperation operation, ExpressionNode* value) : operation(operation), value(value) {}
+};
 
 struct BinOpNode : public ExpressionNode {
     ExpressionNode* a;
@@ -123,8 +131,26 @@ struct ExpressionFunctionNode : public ExpressionNode {
         ExpressionFunctionType type, ExpressionNode* array, 
         VariableNode* internal_variable, VariableNode* index_variable, 
         ExpressionNode* action) : 
-        
+
         type(type), array(array), 
+        internal_variable(internal_variable), action(action), 
+        index_variable(index_variable) {}
+};
+
+// only ForEach right now, ill add an enum if i need more
+struct StatementFunctionNode : public StatementNode {
+    VariableNode* internal_variable;
+    StatementNode* action;
+    ExpressionNode* array;
+    // nullable
+    VariableNode* index_variable;
+
+    std::ostream& print(std::ostream& os) const override;
+    
+
+    StatementFunctionNode(ExpressionNode* array, 
+        VariableNode* internal_variable, VariableNode* index_variable, 
+        StatementNode* action) : array(array), 
         internal_variable(internal_variable), action(action), 
         index_variable(index_variable) {}
 };

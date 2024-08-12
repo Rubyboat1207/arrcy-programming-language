@@ -25,6 +25,7 @@ StatementNode* root;
     ArrayElements* expressions;
     ArrayNode* arr;
     VariableNode* var;
+    ModificationAssign* mod;
 }
 
 %token <float_val> NUMBER
@@ -32,50 +33,62 @@ StatementNode* root;
 %token END_OF_FILE ASSIGN LBRACKET RBRACKET COMMA LPAREN RPAREN LESS_THAN GREATER_THAN LCURLY RCURLY EQUALITY INEQUALITY
 %token SLASH PLUS MINUS STAR HASH
 %type <number> number_literal
-%type <stmt> statement
+%type <stmt> statement for_each statements
 %type <expr> expression array_access expression_function
 %type <binop> binary_operation
 %type <expressions> elements
 %type <arr> array;
 %type <var> identifier
+%type <mod> modification_assignment
 
 %token LEN DIM
 
-%start statements
+%start outer_statements
 
 %%
 
+outer_statements:
+    statements END_OF_FILE {
+        root = $1;
+        YYACCEPT;
+    }
+
 statements:
     statement {
-        root = $1;
+        $$ = $1;
     } |
     statements ';' statement {
-        if(root == NULL) {
-            root = $3;
-        }else {
-            root = root->append($3);
-        }
+        $$ = $1->append($3);
     }
     ;
 
-assignment:
-    ASSIGN |
-    PLUS ASSIGN |
-    MINUS ASSIGN |
-    SLASH ASSIGN |
-    STAR ASSIGN
+modification_assignment:
+    PLUS ASSIGN expression {
+        $$ = new ModificationAssign(ExpressionOperation::ADD, $3);
+    } |
+    MINUS ASSIGN expression {
+        $$ = new ModificationAssign(ExpressionOperation::SUBTRACT, $3);
+    } |
+    SLASH ASSIGN expression {
+        $$ = new ModificationAssign(ExpressionOperation::DIVIDE, $3);
+    } |
+    STAR ASSIGN expression {
+        $$ = new ModificationAssign(ExpressionOperation::MULTIPLY, $3);
+    }
     ;
 
 statement:
-    IDENT assignment expression {
+    IDENT ASSIGN expression {
         $$ = new AssignmentNode($1, $3);
+    } |
+    IDENT modification_assignment {
+        $$ = new AssignmentNode($1, new BinOpNode(new VariableNode($1), $2->value, $2->operation));
+        delete $2;
     } |
     for_each |
     function_call |
-    %empty |
-    END_OF_FILE {
-        std::cout << "ENDED FILE" << std::endl;
-        YYACCEPT;
+    %empty {
+        $$ = nullptr;
     }
     ;
 
@@ -115,14 +128,18 @@ expression_function:
     LPAREN expression RPAREN SLASH identifier COMMA identifier LCURLY expression RCURLY { 
         $$ = new ExpressionFunctionNode(ExpressionFunctionType::FILTER, $2, $5, $7, $9);
     }  | // (x)/a{ a + 5 };
-    LPAREN expression RPAREN LESS_THAN identifier COMMA identifier GREATER_THAN LCURLY expression RCURLY { 
-        $$ = new ExpressionFunctionNode(ExpressionFunctionType::REDUCE, $2, $5, $7, $10);
-    }  // (x)<acc, v>{ acc + v };
+    LPAREN expression RPAREN LESS_THAN identifier COMMA identifier LCURLY expression RCURLY { 
+        $$ = new ExpressionFunctionNode(ExpressionFunctionType::REDUCE, $2, $5, $7, $9);
+    }  // (x)<acc, v { acc + v };
     ;
 
 for_each:
-    LPAREN expression RPAREN STAR IDENT COMMA IDENT STAR LCURLY statements RCURLY { printf("for each function with value and index vars called %s, %s\n", $5, $7); } |
-    LPAREN expression RPAREN STAR IDENT LCURLY statements RCURLY { printf("for each function with value var called %s\n", $5); }
+    LPAREN expression RPAREN STAR identifier COMMA identifier LCURLY statements RCURLY { 
+        $$ = new StatementFunctionNode($2, $5, $7, $9);
+    } |
+    LPAREN expression RPAREN STAR identifier LCURLY statements RCURLY {
+        $$ = new StatementFunctionNode($2, $5, nullptr, $7);
+    }
     ;
 
 property_access:
