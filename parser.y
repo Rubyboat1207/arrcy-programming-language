@@ -1,6 +1,7 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 #include <memory>
 #include <stdbool.h>
 #include "../tree.hpp"
@@ -20,24 +21,35 @@ StatementNode* root;
     LiteralNumberNode* number;
     StatementNode* stmt;
     ExpressionNode* expr;
+    BinOpNode* binop;
 }
 
 %token <float_val> NUMBER
 %token <str> IDENT
-%token ASSIGN LBRACKET RBRACKET COMMA LPAREN RPAREN LESS_THAN GREATER_THAN LCURLY RCURLY EQUALITY INEQUALITY
+%token END_OF_FILE ASSIGN LBRACKET RBRACKET COMMA LPAREN RPAREN LESS_THAN GREATER_THAN LCURLY RCURLY EQUALITY INEQUALITY
 %token SLASH PLUS MINUS STAR HASH
 %type <number> number_literal
 %type <stmt> statement
 %type <expr> expression
+%type <binop> binary_operation
 
 %token LEN DIM
 
 %start statements
 
 %%
+
 statements:
-    statement |
-    statements ';' statement
+    statement {
+        root = $1;
+    } |
+    statements ';' statement {
+        if(root == NULL) {
+            root = $3;
+        }else {
+            root = root->append($3);
+        }
+    }
     ;
 
 assignment:
@@ -51,12 +63,14 @@ assignment:
 statement:
     IDENT assignment expression {
         $$ = new AssignmentNode(std::string($1), $3);
-
-        $$->print();
     } |
     for_each |
     function_call |
-    %empty
+    %empty |
+    END_OF_FILE {
+        std::cout << "ENDED FILE" << std::endl;
+        YYACCEPT;
+    }
     ;
 
 expression:
@@ -98,16 +112,66 @@ function_call:
     ;
 
 binary_operation:
-    expression SLASH expression { printf("binop divide\n"); } |
-    expression PLUS  expression { printf("binop add\n"); } |
-    expression MINUS expression { printf("binop subtract\n"); } |
-    expression STAR  expression { printf("binop multiply\n"); } |
-    expression LESS_THAN  expression { printf("binop lt\n"); } |
-    expression GREATER_THAN  expression { printf("binop gt\n"); } |
-    expression GREATER_THAN ASSIGN  expression { printf("binop gt or eq\n"); } |
-    expression LESS_THAN ASSIGN  expression { printf("binop lt or eq\n"); } |
-    expression EQUALITY expression { printf("binop equality\n"); } |
-    expression INEQUALITY expression { printf("binop inequality\n"); } 
+    expression SLASH expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::DIVIDE;
+    } |
+    expression PLUS  expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::ADD;
+    } |
+    expression MINUS expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::SUBTRACT;
+    } |
+    expression STAR expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::MULTIPLY;
+    } |
+    expression LESS_THAN expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::LT;
+    } |
+    expression GREATER_THAN expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::GT;
+    } |
+    expression GREATER_THAN ASSIGN expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $4;
+        $$->operation = ExpressionOperation::GTEQ;
+    } |
+    expression LESS_THAN ASSIGN expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $4;
+        $$->operation = ExpressionOperation::LTEQ;
+    } |
+    expression EQUALITY expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::EQ;
+    } |
+    expression INEQUALITY expression { 
+        $$ = new BinOpNode();
+        $$->a = $1;
+        $$->b = $3;
+        $$->operation = ExpressionOperation::INEQ;
+    } 
     ;
 
 number_literal:
@@ -128,4 +192,8 @@ elements:
 %%
 void yyerror(const char *s) {
     fprintf(stderr, "Error: %s\n", s);
+}
+
+StatementNode* getRoot() {
+    return root;
 }

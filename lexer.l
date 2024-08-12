@@ -6,7 +6,8 @@ extern int yyparse(void);
 
 void scan_string(const char* str)
 {
-    yy_switch_to_buffer(yy_scan_string(str));
+    YY_BUFFER_STATE buffer = yy_scan_string(str);
+    yy_switch_to_buffer(buffer);
 }
 %}
 
@@ -41,4 +42,4 @@ void scan_string(const char* str)
 
 %%
 
-int yywrap(void) { return 0; }
+int yywrap(void) { return 1; }
