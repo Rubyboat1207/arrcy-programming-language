@@ -1,26 +1,28 @@
 #include "tree.hpp"
 #include "generated/parser.tab.hpp"
 #include <iostream>
+#include "preprocessor.hpp"
 
 void scan_string(const char* str);
 StatementNode* getRoot();
 
 int main() {
     scan_string(
-        "x = 2 / 2 + 5;"
-        "array = [0, 1, 2];"
-        "test = 5 + y;"
-        "access = array[2];"
-        "arr2 = (array)#x{ x + 1 };"
-        "literal_test = ([2, 3, 12, 5])#x{ x + 1 };"
-        "(array)*x{y = y + x;};"
-        "y -= 2;"
-        "y += 2;"
-        "y /= 2;"
-        "y *= 2;"
+        "x = 2;"
+        "y = [3];"
+        "x = y;"
     );
     yyparse();
     auto root = getRoot();
+    auto res = preprocess(root);
     std::cout << *getRoot() << std::endl;
+
+    if(res.messages.size() > 0) {
+        for(auto message : res.messages) {
+            std::cout << message << std::endl;
+        }
+    }else {
+        std::cout << "No errors found." << std::endl;
+    }
     return 0;
 }

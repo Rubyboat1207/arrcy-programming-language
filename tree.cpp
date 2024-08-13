@@ -1,7 +1,8 @@
 #include "tree.hpp"
+#include "preprocessor.hpp"
 #include<iostream>
 
-//#define UGLY_PRINT
+// #define UGLY_PRINT
 
 
 std::ostream& operator<<(std::ostream& os, ExpressionOperation op) {
@@ -42,6 +43,11 @@ std::ostream& BinOpNode::print(std::ostream& os) const {
     #endif
 }
 
+void BinOpNode::accept(ExpressionVisitor &visitor)
+{
+    visitor.visit(this);
+}
+
 std::ostream& LiteralNumberNode::print(std::ostream& os) const {
     #ifdef UGLY_PRINT
         return os << "LitNum(" << value << ")";
@@ -50,12 +56,22 @@ std::ostream& LiteralNumberNode::print(std::ostream& os) const {
     #endif
 }
 
+void LiteralNumberNode::accept(ExpressionVisitor &visitor)
+{
+    visitor.visit(this);
+}
+
 std::ostream& VariableNode::print(std::ostream& os) const {
     #ifdef UGLY_PRINT
         return os << "Var(" << s << ")";
     #else
         return os << s;
     #endif
+}
+
+void VariableNode::accept(ExpressionVisitor &visitor)
+{
+    visitor.visit(this);
 }
 
 std::ostream& ArrayNode::print(std::ostream& os) const {
@@ -79,6 +95,11 @@ std::ostream& ArrayNode::print(std::ostream& os) const {
     }
 
     return os << "]";
+}
+
+void ArrayNode::accept(ExpressionVisitor &visitor)
+{
+    visitor.visit(this);
 }
 
 std::ostream& AssignmentNode::print(std::ostream& os) const {
@@ -154,6 +175,11 @@ std::ostream &ExpressionFunctionNode::print(std::ostream &os) const
     #endif
 }
 
+void ExpressionFunctionNode::accept(ExpressionVisitor & visitor)
+{
+    visitor.visit(this);
+}
+
 std::ostream &StatementFunctionNode::print(std::ostream &os) const
 {
     #ifdef UGLY_PRINT
@@ -172,3 +198,4 @@ std::ostream &StatementFunctionNode::print(std::ostream &os) const
         return os << "{\n" << *action << "}";
     #endif
 }
+

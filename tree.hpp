@@ -5,6 +5,9 @@
 #include <string>
 #include <iostream>
 
+class ExpressionVisitor;
+
+
 class ASTNode {
 public:
     virtual std::ostream& print(std::ostream& os) const = 0;
@@ -15,6 +18,8 @@ public:
 
 struct ExpressionNode : public ASTNode {
     virtual std::ostream& print(std::ostream& os) const override = 0;
+
+    virtual void accept(ExpressionVisitor& visitor) = 0;
 };
 
 struct CodeBlockNode;
@@ -45,24 +50,27 @@ struct AssignmentNode : public StatementNode {
 };
 // exprs
 
+#define ALGEBRAIC_OPS 0b10000000
+#define BOOLEAN_OPS 0b01000000
+#define ARRAY_OPS 0b00100000
 
-enum class ExpressionOperation {
-    // algebreic ops
-    ADD,
-    SUBTRACT,
-    DIVIDE,
-    MULTIPLY,
+enum class ExpressionOperation : uint8_t {
+    // algebreic ops (last bit set)
+    ADD      = 0b10000000,
+    SUBTRACT = 0b10000001,
+    DIVIDE   = 0b10000010,
+    MULTIPLY = 0b10000011,
 
-    // boolean ops
-    LT,
-    GT,
-    LTEQ,
-    GTEQ,
-    EQ,
-    INEQ,
+    // boolean ops (second to last bit set)
+    LT       = 0b01000000,
+    GT       = 0b01000001,
+    LTEQ     = 0b01000010,
+    GTEQ     = 0b01000011,
+    EQ       = 0b01000100,
+    INEQ     = 0b01000101,
 
-    // well, this one...
-    ACCESS
+    // array operations (third to last bit set)
+    ACCESS   = 0b00100000
 };
 std::ostream& operator<<(std::ostream& os, ExpressionOperation op);
 
@@ -81,6 +89,7 @@ struct BinOpNode : public ExpressionNode {
     BinOpNode(ExpressionNode* a, ExpressionNode* b, ExpressionOperation operation) : a(a), b(b), operation(operation) {}
 
     std::ostream& print(std::ostream& os) const override;
+    void accept(ExpressionVisitor& visitor) override;
 };
 
 struct LiteralNumberNode : public ExpressionNode {
@@ -89,6 +98,7 @@ struct LiteralNumberNode : public ExpressionNode {
     LiteralNumberNode(double value) : value(value) {}
 
     std::ostream& print(std::ostream& os) const override;
+    void accept(ExpressionVisitor& visitor) override;
 };
 
 struct VariableNode : public ExpressionNode {
@@ -97,6 +107,7 @@ struct VariableNode : public ExpressionNode {
     std::ostream& print(std::ostream& os) const override;
 
     VariableNode(std::string s) : s(s) {}
+    void accept(ExpressionVisitor& visitor) override;
 };
 
 struct ArrayElements {
@@ -108,6 +119,7 @@ struct ArrayNode : public ExpressionNode {
     std::ostream& print(std::ostream& os) const override;
 
     ArrayNode(ArrayElements* values) : values(values) {}
+    void accept(ExpressionVisitor& visitor) override;
 };
 
 enum class ExpressionFunctionType {
@@ -126,6 +138,7 @@ struct ExpressionFunctionNode : public ExpressionNode {
     VariableNode* index_variable;
 
     std::ostream& print(std::ostream& os) const override;
+    void accept(ExpressionVisitor& visitor) override;
 
     ExpressionFunctionNode(
         ExpressionFunctionType type, ExpressionNode* array, 
