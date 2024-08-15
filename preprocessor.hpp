@@ -26,9 +26,8 @@ enum class VariableType {
 };
 
 
-struct PreprocessResult {
-    std::vector<PreprocessorMessage> messages;
-};
+
+
 
 struct VariableInformation {
     VariableType type;
@@ -38,6 +37,10 @@ struct VariableInformation {
 
 using VariableContext = std::map<std::string, VariableInformation*>;
 
+struct PreprocessResult {
+    std::vector<PreprocessorMessage> messages;
+    std::optional<VariableContext*> opt_variables;
+};
 
 class ExpressionVisitor {
 public:

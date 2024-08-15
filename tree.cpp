@@ -4,6 +4,21 @@
 
 // #define UGLY_PRINT
 
+#define node_visitor_impl(cls) \
+void cls::accept(NodeVisitor& visitor) { \
+    visitor.visit(this); \
+}
+
+node_visitor_impl(BinOpNode)
+node_visitor_impl(LiteralNumberNode)
+node_visitor_impl(VariableNode)
+node_visitor_impl(ArrayNode)
+node_visitor_impl(AssignmentNode)
+node_visitor_impl(CodeBlockNode)
+node_visitor_impl(ExpressionFunctionNode)
+node_visitor_impl(FunctionCallNodeExpression)
+node_visitor_impl(FunctionCallNodeStatement)
+node_visitor_impl(StatementFunctionNode)
 
 std::ostream& operator<<(std::ostream& os, ExpressionOperation op) {
     switch (op) {

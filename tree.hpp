@@ -7,11 +7,12 @@
 #include <cstdint>
 
 class ExpressionVisitor;
-
+class NodeVisitor;
 
 class ASTNode {
 public:
     virtual std::ostream& print(std::ostream& os) const = 0;
+    virtual void accept(NodeVisitor& visitor) = 0;
     friend std::ostream& operator<<(std::ostream& os, const ASTNode& obj);
 };
 
@@ -21,14 +22,16 @@ struct ExpressionNode : public ASTNode {
     virtual std::ostream& print(std::ostream& os) const override = 0;
 
     virtual void accept(ExpressionVisitor& visitor) = 0;
+    virtual void accept(NodeVisitor& visitor) = 0;
 };
 
 struct CodeBlockNode;
 
 struct StatementNode : public ASTNode {
     virtual std::ostream& print(std::ostream& os) const override = 0;
-
+    
     virtual CodeBlockNode* append(StatementNode* node);
+    virtual void accept(NodeVisitor& visitor) = 0;
 };
 
 // stmts
@@ -39,6 +42,7 @@ struct CodeBlockNode : public StatementNode {
     std::ostream& print(std::ostream& os) const override;
 
     CodeBlockNode* append(StatementNode* node);
+    void accept(NodeVisitor& visitor) override;
 };
 
 struct AssignmentNode : public StatementNode {
@@ -48,6 +52,8 @@ struct AssignmentNode : public StatementNode {
     std::ostream& print(std::ostream& os) const override;
 
     AssignmentNode(std::string name, ExpressionNode* value) : name(name), value(value) {}
+    void accept(NodeVisitor& visitor) override;
+    
 };
 // exprs
 
@@ -91,6 +97,7 @@ struct BinOpNode : public ExpressionNode {
 
     std::ostream& print(std::ostream& os) const override;
     void accept(ExpressionVisitor& visitor) override;
+    void accept(NodeVisitor& visitor) override;
 };
 
 struct ArrayElements {
@@ -113,6 +120,7 @@ struct LiteralNumberNode : public ExpressionNode {
 
     std::ostream& print(std::ostream& os) const override;
     void accept(ExpressionVisitor& visitor) override;
+    void accept(NodeVisitor& visitor) override;
 };
 
 struct FunctionCallNodeExpression;
@@ -141,12 +149,14 @@ struct FunctionCallData {
 struct FunctionCallNodeExpression : public ExpressionNode, public FunctionCallData {
     std::ostream& print(std::ostream& os) const override;
     void accept(ExpressionVisitor& visitor) override;
+    void accept(NodeVisitor& visitor) override;
 
     FunctionCallNodeExpression(std::string function, ArrayElements* elements) : FunctionCallData(function, elements) {}
 };
 
 struct FunctionCallNodeStatement : public StatementNode, public FunctionCallData {
     std::ostream& print(std::ostream& os) const override;
+    void accept(NodeVisitor& visitor) override;
 
     FunctionCallNodeStatement(std::string function, ArrayElements* elements) : FunctionCallData(function, elements) {}
 };
@@ -154,7 +164,9 @@ struct FunctionCallNodeStatement : public StatementNode, public FunctionCallData
 struct VariableNode : public ExpressionNode {
     std::string s;
 
+    
     std::ostream& print(std::ostream& os) const override;
+    void accept(NodeVisitor& visitor) override;
 
     VariableNode(std::string s) : s(s) {}
     void accept(ExpressionVisitor& visitor) override;
@@ -163,9 +175,11 @@ struct VariableNode : public ExpressionNode {
 struct ArrayNode : public ExpressionNode {
     ArrayElements* values = nullptr;
     std::ostream& print(std::ostream& os) const override;
+    void accept(NodeVisitor& visitor) override;
 
     ArrayNode(ArrayElements* values) : values(values) {}
     void accept(ExpressionVisitor& visitor) override;
+    
 };
 
 enum class ExpressionFunctionType {
@@ -185,6 +199,7 @@ struct ExpressionFunctionNode : public ExpressionNode {
 
     std::ostream& print(std::ostream& os) const override;
     void accept(ExpressionVisitor& visitor) override;
+    void accept(NodeVisitor& visitor) override;
 
     ExpressionFunctionNode(
         ExpressionFunctionType type, ExpressionNode* array, 
@@ -205,13 +220,27 @@ struct StatementFunctionNode : public StatementNode {
     VariableNode* index_variable;
 
     std::ostream& print(std::ostream& os) const override;
-    
+    void accept(NodeVisitor& visitor) override;
 
     StatementFunctionNode(ExpressionNode* array, 
         VariableNode* internal_variable, VariableNode* index_variable, 
         StatementNode* action) : array(array), 
         internal_variable(internal_variable), action(action), 
         index_variable(index_variable) {}
+};
+
+class NodeVisitor {
+public:
+    virtual void visit(LiteralNumberNode* node) = 0;
+    virtual void visit(VariableNode* node) = 0;
+    virtual void visit(ArrayNode* node) = 0;
+    virtual void visit(BinOpNode* node) = 0;
+    virtual void visit(ExpressionFunctionNode* node) = 0;
+    virtual void visit(FunctionCallNodeExpression* node) = 0;
+    virtual void visit(FunctionCallNodeStatement* node) = 0;
+    virtual void visit(StatementFunctionNode* node) = 0;
+    virtual void visit(AssignmentNode* node) = 0;
+    virtual void visit(CodeBlockNode* node) = 0;
 };
 
 #endif

@@ -36,12 +36,12 @@ PreprocessResult preprocess(StatementNode *root)
         return result;
     }
 
-    VariableContext variables = {};
+    VariableContext* variables = new VariableContext();
 
     for(auto stmt : code_block->stmts) {
         AssignmentNode* assignment = dynamic_cast<AssignmentNode*>(stmt);
         if(assignment != nullptr) {
-            auto type_visitor = TypeLocatingVisitor(&variables, &result);
+            auto type_visitor = TypeLocatingVisitor(variables, &result);
             assignment->value->accept(type_visitor);
 
             if(type_visitor.errored) {
@@ -49,12 +49,12 @@ PreprocessResult preprocess(StatementNode *root)
             }
 
             auto assigned_type = type_visitor.ret_value;
-            if(variables[assignment->name] == nullptr) {
+            if((*variables)[assignment->name] == nullptr) {
                 VariableInformation* info = new VariableInformation();
                 info->type = assigned_type;
-                variables[assignment->name] = info;
+                (*variables)[assignment->name] = info;
             }else {
-                auto defined_type = variables[assignment->name]->type;
+                auto defined_type = (*variables)[assignment->name]->type;
 
                 if(defined_type != VariableType::ANY && assigned_type != VariableType::ANY) {
                     if(defined_type != assigned_type) {
@@ -65,10 +65,12 @@ PreprocessResult preprocess(StatementNode *root)
         }
         FunctionCallNodeStatement* fnCallStmt = dynamic_cast<FunctionCallNodeStatement*>(stmt);
         if(fnCallStmt != nullptr) {
-            auto msgs = processFunctionData(&variables, fnCallStmt).messages;
+            auto msgs = processFunctionData(variables, fnCallStmt).messages;
             result.messages.insert(result.messages.end(), msgs.begin(), msgs.end());
         }
     }
+
+    result.opt_variables = variables;
 
     return result;
 }
