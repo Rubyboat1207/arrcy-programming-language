@@ -201,11 +201,17 @@ std::ostream &StatementFunctionNode::print(std::ostream &os) const
 
 FunctionCallNodeExpression* FunctionCallData::createNodeExpression()
 {
+    if(parameters == nullptr) {
+        return new FunctionCallNodeExpression(function, nullptr);
+    }
     return new FunctionCallNodeExpression(function, parameters->copy());
 }
 
 FunctionCallNodeStatement* FunctionCallData::createNodeStatement()
 {
+    if(parameters == nullptr) {
+        return new FunctionCallNodeStatement(function, nullptr);
+    }
     return new FunctionCallNodeStatement(function, parameters->copy());
 }
 

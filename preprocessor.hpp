@@ -21,7 +21,7 @@ enum class VariableType {
     NUMBER,
     ARRAY,
     MATRIX,
-    INVALID,
+    VOID,
     ANY
 };
 
@@ -65,12 +65,18 @@ struct TypeLocatingVisitor : ExpressionVisitor {
     TypeLocatingVisitor(VariableContext* variables, PreprocessResult* result) : variables(variables), result(result) {}
 };
 
-PreprocessResult preprocess(StatementNode* root);
-
 struct FunctionTypeData {
     std::vector<VariableType> parameters;
     VariableType returnType;
 };
+
+namespace preprocessor {
+    void addToFunctionData(std::string name, FunctionTypeData data);
+    PreprocessResult preprocess(StatementNode* root);
+    PreprocessResult processFunctionData(VariableContext* variables, FunctionCallData* node);
+}
+
+
 
 // struct ArraySizeVisitor : ExpressionVisitor {
 //     VariableContext* variables;

@@ -142,13 +142,13 @@ struct FunctionCallNodeExpression : public ExpressionNode, public FunctionCallDa
     std::ostream& print(std::ostream& os) const override;
     void accept(ExpressionVisitor& visitor) override;
 
-    FunctionCallNodeExpression(std::string function, ArrayElements* parameters) : FunctionCallData(function, parameters) {}
+    FunctionCallNodeExpression(std::string function, ArrayElements* elements) : FunctionCallData(function, elements) {}
 };
 
 struct FunctionCallNodeStatement : public StatementNode, public FunctionCallData {
     std::ostream& print(std::ostream& os) const override;
 
-    FunctionCallNodeStatement(std::string function, ArrayElements* parameters) : FunctionCallData(function, parameters) {}
+    FunctionCallNodeStatement(std::string function, ArrayElements* elements) : FunctionCallData(function, elements) {}
 };
 
 struct VariableNode : public ExpressionNode {

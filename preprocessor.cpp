@@ -1,9 +1,5 @@
 #include "preprocessor.hpp"
 
-const std::map<std::string, FunctionTypeData> functionData = {
-    {"min", FunctionTypeData{{VariableType::NUMBER, VariableType::NUMBER}, VariableType::NUMBER}}
-};
-
 std::ostream &operator<<(std::ostream &os, const PreprocessorMessage &obj)
 {
     switch (obj.type) {
@@ -15,6 +11,18 @@ std::ostream &operator<<(std::ostream &os, const PreprocessorMessage &obj)
             return os << "\033[1;34mINFO: " << obj.message << "\033[0m";
     }
     return os;
+}
+
+namespace preprocessor {
+std::map<std::string, FunctionTypeData> functionData = {
+    {"min", FunctionTypeData{{VariableType::NUMBER, VariableType::NUMBER}, VariableType::NUMBER}},
+    {"max", FunctionTypeData{{VariableType::NUMBER, VariableType::NUMBER}, VariableType::NUMBER}},
+    {"print", FunctionTypeData{{VariableType::ANY}, VariableType::VOID}},
+};
+
+void addToFunctionData(std::string name, FunctionTypeData data)
+{
+    functionData[name] = data;
 }
 
 PreprocessResult preprocess(StatementNode *root)
@@ -55,9 +63,59 @@ PreprocessResult preprocess(StatementNode *root)
                 }
             }
         }
+        FunctionCallNodeStatement* fnCallStmt = dynamic_cast<FunctionCallNodeStatement*>(stmt);
+        if(fnCallStmt != nullptr) {
+            auto msgs = processFunctionData(&variables, fnCallStmt).messages;
+            result.messages.insert(result.messages.end(), msgs.begin(), msgs.end());
+        }
     }
 
     return result;
+}
+PreprocessResult processFunctionData(VariableContext *variables, FunctionCallData *node)
+{
+    PreprocessResult result = PreprocessResult();
+    auto fn = preprocessor::functionData.find(node->function);
+
+    if(fn != preprocessor::functionData.end()) {
+        // might as well check if params are correct, while we're here.
+        FunctionTypeData fcd = (*fn).second;
+
+        int given_param_size = 0;
+        if(node->parameters != nullptr) {
+            given_param_size = node->parameters->expressions.size();
+        }
+        
+        int expected_param_size = fcd.parameters.size();
+        if(given_param_size != expected_param_size) {
+            result.messages.push_back(PreprocessorMessage(
+                "Parameter count mismatch, expected " + std::to_string(expected_param_size) + " found " + std::to_string(given_param_size),
+                PreprocessorMessageType::ERROR
+            ));
+            return result;
+        }
+        auto type_visitor = TypeLocatingVisitor(variables, &result);
+        for(int i = 0; i < expected_param_size; i++) {
+            VariableType expected_type = fcd.parameters[i];
+            if(expected_type == VariableType::ANY) {
+                continue;
+            }
+            ExpressionNode* expr = node->parameters->expressions[i];
+            expr->accept(type_visitor);
+
+            if(expected_type != type_visitor.ret_value) {
+                result.messages.push_back(PreprocessorMessage(
+                    "Parameter " + std::to_string(i + 1) + " is not the correct type on function " + (*fn).first,
+                    PreprocessorMessageType::ERROR
+                ));
+                return result;
+            }
+        }
+    }else {
+        result.messages.push_back(PreprocessorMessage("Function " + node->function + " is not defined.", PreprocessorMessageType::ERROR));
+    }
+    return result;
+}
 }
 
 void TypeLocatingVisitor::visit(LiteralNumberNode *node)
@@ -112,38 +170,25 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
 
 void TypeLocatingVisitor::visit(FunctionCallNodeExpression *node)
 {
-    auto fn = functionData.find(node->function);
+    auto msgs = preprocessor::processFunctionData(variables, node).messages;
+    result->messages.insert(result->messages.end(), msgs.begin(), msgs.end());
 
-    if(fn != functionData.end()) {
-        // might as well check if params are correct, while we're here.
-        FunctionTypeData fcd = (*fn).second;
-        int given_param_size = node->parameters->expressions.size();
-        int expected_param_size = fcd.parameters.size();
-        if(given_param_size != expected_param_size) {
-            result->messages.push_back(PreprocessorMessage(
-                "Parameter count mismatch, expected " + std::to_string(expected_param_size) + " found " + std::to_string(given_param_size),
-                PreprocessorMessageType::ERROR
-            ));
+    if(msgs.size() > 0) {
+        errored = true;
+        return;
+    }
+
+    auto fn = preprocessor::functionData.find(node->function);
+
+    if(fn != preprocessor::functionData.end()) {
+        if((*fn).second.returnType == VariableType::VOID) {
+            result->messages.push_back(PreprocessorMessage("Function " + node->function + " is not allowed in an expression.", PreprocessorMessageType::ERROR));
             errored = true;
             return;
         }
-        for(int i = 0; i < expected_param_size; i++) {
-            VariableType expected_type = fcd.parameters[i];
-            if(expected_type == VariableType::ANY) {
-                continue;
-            }
-            ExpressionNode* expr = node->parameters->expressions[i];
-            expr->accept(*this);
-
-            if(expected_type != ret_value) {
-                result->messages.push_back(PreprocessorMessage(
-                    "Parameter " + std::to_string(i + 1) + " is not the correct type on function " + (*fn).first,
-                    PreprocessorMessageType::ERROR
-                ));
-            }
-        }
-
         ret_value = (*fn).second.returnType;
+    }else {
+        errored = true;
     }
 }
 
