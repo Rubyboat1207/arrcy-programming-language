@@ -93,6 +93,19 @@ struct BinOpNode : public ExpressionNode {
     void accept(ExpressionVisitor& visitor) override;
 };
 
+struct ArrayElements {
+    std::vector<ExpressionNode*> expressions;
+
+
+    ArrayElements* copy() {
+        auto elem = new ArrayElements();
+        elem->expressions = std::vector<ExpressionNode*>(expressions);
+
+        return elem;
+    }
+    ~ArrayElements() = default;
+};
+
 struct LiteralNumberNode : public ExpressionNode {
     double value;
 
@@ -102,6 +115,42 @@ struct LiteralNumberNode : public ExpressionNode {
     void accept(ExpressionVisitor& visitor) override;
 };
 
+struct FunctionCallNodeExpression;
+struct FunctionCallNodeStatement;
+
+struct FunctionCallData {
+    std::string function;
+    ArrayElements* parameters;
+
+    FunctionCallData(std::string function, ArrayElements* parameters) : function(function), parameters(parameters) {}
+
+    /// @brief Creates a new Node Expression using the data from this FnCallDta
+    /// this object should be deleted after, and is useless.
+    /// @return The new express
+    FunctionCallNodeExpression* createNodeExpression();
+    /// @brief Creates a new Node Statement using the data from this FnCallDta
+    /// this object should be deleted after, and is useless.
+    /// @return The new express
+    FunctionCallNodeStatement* createNodeStatement();
+
+    ~FunctionCallData() {
+        delete parameters;
+    }
+};
+
+struct FunctionCallNodeExpression : public ExpressionNode, public FunctionCallData {
+    std::ostream& print(std::ostream& os) const override;
+    void accept(ExpressionVisitor& visitor) override;
+
+    FunctionCallNodeExpression(std::string function, ArrayElements* parameters) : FunctionCallData(function, parameters) {}
+};
+
+struct FunctionCallNodeStatement : public StatementNode, public FunctionCallData {
+    std::ostream& print(std::ostream& os) const override;
+
+    FunctionCallNodeStatement(std::string function, ArrayElements* parameters) : FunctionCallData(function, parameters) {}
+};
+
 struct VariableNode : public ExpressionNode {
     std::string s;
 
@@ -109,10 +158,6 @@ struct VariableNode : public ExpressionNode {
 
     VariableNode(std::string s) : s(s) {}
     void accept(ExpressionVisitor& visitor) override;
-};
-
-struct ArrayElements {
-    std::vector<ExpressionNode*> expressions;
 };
 
 struct ArrayNode : public ExpressionNode {

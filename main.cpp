@@ -10,7 +10,7 @@ int main() {
     scan_string(
         "x = 2;"
         "y = [3];"
-        "x = y;"
+        "x = min(1, y);"
     );
     yyparse();
     auto root = getRoot();

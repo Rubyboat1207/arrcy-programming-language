@@ -5,7 +5,7 @@ run: build
 	./$(BIN)/main.exe
 
 build: $(BIN) build_lexparse
-	g++ -g -mavx2 -march=native -std=c++17 -Wno-register tree.cpp generated/lex.yy.c generated/parser.tab.cpp preprocessor.cpp main.cpp -o $(BIN)/main.exe
+	g++ -g -mavx2 -march=native -std=c++23 -Wno-register tree.cpp generated/lex.yy.c generated/parser.tab.cpp preprocessor.cpp main.cpp -o $(BIN)/main.exe
 
 build_lexparse:
 	win_bison -d parser.y -o generated/parser.tab.cpp

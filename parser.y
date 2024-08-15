@@ -26,6 +26,7 @@ StatementNode* root;
     ArrayNode* arr;
     VariableNode* var;
     ModificationAssign* mod;
+    FunctionCallData* fcd;
 }
 
 %token <float_val> NUMBER
@@ -40,6 +41,7 @@ StatementNode* root;
 %type <arr> array;
 %type <var> identifier
 %type <mod> modification_assignment
+%type <fcd> function_call
 
 %token LEN DIM
 
@@ -86,7 +88,11 @@ statement:
         delete $2;
     } |
     for_each |
-    function_call |
+    function_call {
+        $$ = $1->createNodeStatement();
+        
+        delete $1;
+    } |
     %empty {
         $$ = nullptr;
     }
@@ -105,7 +111,11 @@ expression:
     identifier |
     expression_function |
     property_access |
-    function_call |
+    function_call {
+        $$ = $1->createNodeExpression();
+        
+        delete $1;
+    } |
     array_access
     ;
 
@@ -148,8 +158,12 @@ property_access:
     ;
 
 function_call:
-    IDENT LPAREN expression RPAREN { printf("function call %s\n", $1); } |
-    IDENT LPAREN RPAREN { printf("function call %s\n", $1); }
+    IDENT LPAREN elements RPAREN { 
+        $$ = new FunctionCallData(std::string($1), $3);
+    } |
+    IDENT LPAREN RPAREN { 
+        $$ = new FunctionCallData(std::string($1), nullptr);
+    }
     ;
 
 binary_operation:

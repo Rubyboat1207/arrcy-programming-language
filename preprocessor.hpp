@@ -20,10 +20,13 @@ struct PreprocessorMessage {
 enum class VariableType {
     NUMBER,
     ARRAY,
-    MATRIX
+    MATRIX,
+    INVALID,
+    ANY
 };
 
-struct PreprocesResult {
+
+struct PreprocessResult {
     std::vector<PreprocessorMessage> messages;
 };
 
@@ -43,12 +46,13 @@ public:
     virtual void visit(ArrayNode* node) = 0;
     virtual void visit(BinOpNode* node) = 0;
     virtual void visit(ExpressionFunctionNode* node) = 0;
+    virtual void visit(FunctionCallNodeExpression* node) = 0;
 };
 
 struct TypeLocatingVisitor : ExpressionVisitor {
     VariableContext* variables;
     VariableType ret_value;
-    PreprocesResult* result;
+    PreprocessResult* result;
     bool errored = false;
     
     void visit(LiteralNumberNode* node) override;
@@ -56,11 +60,17 @@ struct TypeLocatingVisitor : ExpressionVisitor {
     void visit(ArrayNode* node) override;
     void visit(BinOpNode* node) override;
     void visit(ExpressionFunctionNode* node) override;
+    void visit(FunctionCallNodeExpression* node) override;
 
-    TypeLocatingVisitor(VariableContext* variables, PreprocesResult* result) : variables(variables), result(result) {}
+    TypeLocatingVisitor(VariableContext* variables, PreprocessResult* result) : variables(variables), result(result) {}
 };
 
-PreprocesResult preprocess(StatementNode* root);
+PreprocessResult preprocess(StatementNode* root);
+
+struct FunctionTypeData {
+    std::vector<VariableType> parameters;
+    VariableType returnType;
+};
 
 // struct ArraySizeVisitor : ExpressionVisitor {
 //     VariableContext* variables;

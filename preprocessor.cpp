@@ -1,5 +1,9 @@
 #include "preprocessor.hpp"
 
+const std::map<std::string, FunctionTypeData> functionData = {
+    {"min", FunctionTypeData{{VariableType::NUMBER, VariableType::NUMBER}, VariableType::NUMBER}}
+};
+
 std::ostream &operator<<(std::ostream &os, const PreprocessorMessage &obj)
 {
     switch (obj.type) {
@@ -13,9 +17,9 @@ std::ostream &operator<<(std::ostream &os, const PreprocessorMessage &obj)
     return os;
 }
 
-PreprocesResult preprocess(StatementNode *root)
+PreprocessResult preprocess(StatementNode *root)
 {
-    PreprocesResult result = PreprocesResult();
+    PreprocessResult result = PreprocessResult();
 
     CodeBlockNode* code_block = dynamic_cast<CodeBlockNode*>(root);
 
@@ -28,7 +32,6 @@ PreprocesResult preprocess(StatementNode *root)
 
     for(auto stmt : code_block->stmts) {
         AssignmentNode* assignment = dynamic_cast<AssignmentNode*>(stmt);
-
         if(assignment != nullptr) {
             auto type_visitor = TypeLocatingVisitor(&variables, &result);
             assignment->value->accept(type_visitor);
@@ -45,12 +48,12 @@ PreprocesResult preprocess(StatementNode *root)
             }else {
                 auto defined_type = variables[assignment->name]->type;
 
-                if(defined_type != assigned_type) {
-                    result.messages.push_back(PreprocessorMessage("Variable " + assignment->name + " is being assigned a value of a different type.", PreprocessorMessageType::ERROR));
+                if(defined_type != VariableType::ANY && assigned_type != VariableType::ANY) {
+                    if(defined_type != assigned_type) {
+                        result.messages.push_back(PreprocessorMessage("Variable " + assignment->name + " is being assigned a value of a different type.", PreprocessorMessageType::ERROR));
+                    }
                 }
             }
-            
-            
         }
     }
 
@@ -105,6 +108,43 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
         return;
     }
     ret_value = VariableType::ARRAY;
+}
+
+void TypeLocatingVisitor::visit(FunctionCallNodeExpression *node)
+{
+    auto fn = functionData.find(node->function);
+
+    if(fn != functionData.end()) {
+        // might as well check if params are correct, while we're here.
+        FunctionTypeData fcd = (*fn).second;
+        int given_param_size = node->parameters->expressions.size();
+        int expected_param_size = fcd.parameters.size();
+        if(given_param_size != expected_param_size) {
+            result->messages.push_back(PreprocessorMessage(
+                "Parameter count mismatch, expected " + std::to_string(expected_param_size) + " found " + std::to_string(given_param_size),
+                PreprocessorMessageType::ERROR
+            ));
+            errored = true;
+            return;
+        }
+        for(int i = 0; i < expected_param_size; i++) {
+            VariableType expected_type = fcd.parameters[i];
+            if(expected_type == VariableType::ANY) {
+                continue;
+            }
+            ExpressionNode* expr = node->parameters->expressions[i];
+            expr->accept(*this);
+
+            if(expected_type != ret_value) {
+                result->messages.push_back(PreprocessorMessage(
+                    "Parameter " + std::to_string(i + 1) + " is not the correct type on function " + (*fn).first,
+                    PreprocessorMessageType::ERROR
+                ));
+            }
+        }
+
+        ret_value = (*fn).second.returnType;
+    }
 }
 
 // void ArraySizeVisitor::visit(LiteralNumberNode *node)

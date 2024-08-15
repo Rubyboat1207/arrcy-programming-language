@@ -199,3 +199,56 @@ std::ostream &StatementFunctionNode::print(std::ostream &os) const
     #endif
 }
 
+FunctionCallNodeExpression* FunctionCallData::createNodeExpression()
+{
+    return new FunctionCallNodeExpression(function, parameters->copy());
+}
+
+FunctionCallNodeStatement* FunctionCallData::createNodeStatement()
+{
+    return new FunctionCallNodeStatement(function, parameters->copy());
+}
+
+std::ostream &FunctionCallNodeExpression::print(std::ostream &os) const
+{
+    os << function << "(";
+
+    if(parameters != nullptr) {
+        int i = 0;
+        int size = parameters->expressions.size();
+        for(int i = 0; i < size; i++) {
+            auto element = parameters->expressions[i];
+            if(i != size - 1) {
+                os << *element << ",";
+            }else {
+                os << *element;
+            }
+        }
+    }
+
+    return os << ")";
+}
+
+void FunctionCallNodeExpression::accept(ExpressionVisitor &visitor)
+{
+    visitor.visit(this);
+}
+
+std::ostream& FunctionCallNodeStatement::print(std::ostream &os) const {
+    os << function << "(";
+
+    if(parameters != nullptr) {
+        int i = 0;
+        int size = parameters->expressions.size();
+        for(int i = 0; i < size; i++) {
+            auto element = parameters->expressions[i];
+            if(i != size - 1) {
+                os << *element << ",";
+            }else {
+                os << *element;
+            }
+        }
+    }
+
+    return os << ")";
+}
