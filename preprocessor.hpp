@@ -33,6 +33,7 @@ struct VariableInformation {
     VariableType type;
     ExpressionNode* initial_value;
     bool is_ever_read = false;
+    int array_depth = 0;
 };
 
 using VariableContext = std::map<std::string, VariableInformation*>;
@@ -57,6 +58,7 @@ struct TypeLocatingVisitor : ExpressionVisitor {
     VariableType ret_value;
     PreprocessResult* result;
     bool errored = false;
+    int array_depth = 0;
     
     void visit(LiteralNumberNode* node) override;
     void visit(VariableNode* node) override;

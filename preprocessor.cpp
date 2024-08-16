@@ -53,6 +53,7 @@ PreprocessResult preprocess(StatementNode *root)
                 VariableInformation* info = new VariableInformation();
                 info->type = assigned_type;
                 (*variables)[assignment->name] = info;
+                info->array_depth = type_visitor.array_depth;
             }else {
                 auto defined_type = (*variables)[assignment->name]->type;
 
@@ -140,6 +141,8 @@ void TypeLocatingVisitor::visit(VariableNode *node)
 
 void TypeLocatingVisitor::visit(ArrayNode *node)
 {
+    array_depth += 1;
+    node->accept(*this); // if its an array, it'll add one to the depth. Otherwise it wont do anything useful.
     ret_value = VariableType::ARRAY;
 }
 
