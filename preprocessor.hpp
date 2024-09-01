@@ -34,6 +34,16 @@ struct VariableInformation {
     ExpressionNode* initial_value;
     bool is_ever_read = false;
     int array_depth = 0;
+
+    VariableInformation(VariableInformation* other) {
+        type = other->type;
+        initial_value = other->initial_value;
+        is_ever_read = other->is_ever_read;
+        array_depth = other->array_depth;
+    }
+
+    VariableInformation(VariableType type, ExpressionNode* initial_value) : type(type), initial_value(initial_value) {}
+    VariableInformation() {}
 };
 
 using VariableContext = std::map<std::string, VariableInformation*>;
@@ -53,6 +63,27 @@ public:
     virtual void visit(FunctionCallNodeExpression* node) = 0;
 };
 
+struct DefaultExpressionVisitor : ExpressionVisitor {
+    virtual void visit(LiteralNumberNode* node) {};
+    virtual void visit(VariableNode* node) {};
+    virtual void visit(ArrayNode* node) {
+        for(auto value : node->values->expressions) {
+            value->accept(*this);
+        }
+    };
+    virtual void visit(BinOpNode* node) {
+        node->a->accept(*this);
+
+        node->b->accept(*this);
+    };
+    virtual void visit(ExpressionFunctionNode* node) {
+        node->array->accept(*this);
+        node->internal_variable->accept(*this);
+        node->action->accept(*this);
+    };
+    virtual void visit(FunctionCallNodeExpression* node) {};
+};
+
 struct TypeLocatingVisitor : ExpressionVisitor {
     VariableContext* variables;
     VariableType ret_value;
@@ -66,8 +97,18 @@ struct TypeLocatingVisitor : ExpressionVisitor {
     void visit(BinOpNode* node) override;
     void visit(ExpressionFunctionNode* node) override;
     void visit(FunctionCallNodeExpression* node) override;
+    
+    TypeLocatingVisitor makeChild();
 
     TypeLocatingVisitor(VariableContext* variables, PreprocessResult* result) : variables(variables), result(result) {}
+};
+
+struct ArraySizeVisitor : DefaultExpressionVisitor {
+    int size = 0;
+    VariableContext* variables;
+    void visit(ArrayNode* node) override;
+    void visit(BinOpNode *node) override;
+    void visit(VariableNode *node) override;
 };
 
 struct FunctionTypeData {
@@ -79,6 +120,7 @@ namespace preprocessor {
     void addToFunctionData(std::string name, FunctionTypeData data);
     PreprocessResult preprocess(StatementNode* root);
     PreprocessResult processFunctionData(VariableContext* variables, FunctionCallData* node);
+    std::map<std::string, FunctionTypeData> getFunctions();
 }
 
 

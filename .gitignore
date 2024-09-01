@@ -1,3 +1,5 @@
 generated/
 bin/
 .vscode/
+out.cpp
+out.exe

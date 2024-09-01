@@ -243,4 +243,18 @@ public:
     virtual void visit(CodeBlockNode* node) = 0;
 };
 
+class DefaultNodeVisitor : public NodeVisitor {
+public:
+    void visit(LiteralNumberNode* node) {};
+    void visit(VariableNode* node) {};
+    void visit(ArrayNode* node) {};
+    void visit(BinOpNode* node) {};
+    void visit(ExpressionFunctionNode* node) {};
+    void visit(FunctionCallNodeExpression* node) {};
+    void visit(FunctionCallNodeStatement* node) {};
+    void visit(StatementFunctionNode* node) {};
+    void visit(AssignmentNode* node) {};
+    void visit(CodeBlockNode* node) {};
+};
+
 #endif

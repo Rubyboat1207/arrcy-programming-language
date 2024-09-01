@@ -61,6 +61,9 @@ PreprocessResult preprocess(StatementNode *root)
                     if(defined_type != assigned_type) {
                         result.messages.push_back(PreprocessorMessage("Variable " + assignment->name + " is being assigned a value of a different type.", PreprocessorMessageType::ERROR));
                     }
+                    if((*variables)[assignment->name]->array_depth != type_visitor.array_depth) {
+                        result.messages.push_back(PreprocessorMessage("Variable " + assignment->name + " is being assigned an array of a different depth (" + std::to_string((*variables)[assignment->name]->array_depth) + " <- " + std::to_string(type_visitor.array_depth) + ").", PreprocessorMessageType::ERROR));
+                    }
                 }
             }
         }
@@ -119,6 +122,10 @@ PreprocessResult processFunctionData(VariableContext *variables, FunctionCallDat
     }
     return result;
 }
+std::map<std::string, FunctionTypeData> getFunctions()
+{
+    return functionData;
+}
 }
 
 void TypeLocatingVisitor::visit(LiteralNumberNode *node)
@@ -141,8 +148,14 @@ void TypeLocatingVisitor::visit(VariableNode *node)
 
 void TypeLocatingVisitor::visit(ArrayNode *node)
 {
-    array_depth += 1;
-    node->accept(*this); // if its an array, it'll add one to the depth. Otherwise it wont do anything useful.
+    ArraySizeVisitor size_visitor{};
+
+    size_visitor.variables = variables;
+
+    node->accept(size_visitor);
+
+    array_depth = size_visitor.size;
+    
     ret_value = VariableType::ARRAY;
 }
 
@@ -157,10 +170,16 @@ void TypeLocatingVisitor::visit(BinOpNode *node)
     node->b->accept(*this);
     right = ret_value;
 
+    ArraySizeVisitor size_visitor{};
+    size_visitor.variables = variables;
+
+    node->a->accept(size_visitor);
+
     if(left == VariableType::NUMBER && right == VariableType::NUMBER) {
         ret_value = VariableType::NUMBER;
     } else {
         ret_value = VariableType::ARRAY;
+        array_depth = size_visitor.size;
     }
 }
 
@@ -170,7 +189,55 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
         ret_value = VariableType::NUMBER;
         return;
     }
+
+    TypeLocatingVisitor child_array_validator = makeChild();
+
+    node->array->accept(child_array_validator);
+
+    if(child_array_validator.ret_value == VariableType::NUMBER) {
+        errored = true;
+        result->messages.push_back(PreprocessorMessage("Input to expression function node was not an array.", PreprocessorMessageType::ERROR));
+        return;
+    }
+
+    if(child_array_validator.ret_value == VariableType::ANY) {
+        result->messages.push_back(PreprocessorMessage("Input to expression function node is unknown at runtime. Be careful.", PreprocessorMessageType::WARNING));
+    }
+    
+
     ret_value = VariableType::ARRAY;
+    ArraySizeVisitor size_visitor{};
+    size_visitor.variables = variables;
+
+    node->array->accept(size_visitor);
+    array_depth = size_visitor.size;
+    
+    TypeLocatingVisitor child = makeChild();
+
+    VariableInformation* internal_var_type = new VariableInformation();
+    VariableInformation* index_variable = nullptr;
+
+    if(array_depth == 1) {
+        internal_var_type->type = VariableType::NUMBER;
+    }else {
+        internal_var_type->type = VariableType::ARRAY;
+        internal_var_type->array_depth = array_depth - 1;
+    }
+    
+    (*child.variables)[node->internal_variable->s] = internal_var_type;
+
+    if(node->index_variable != nullptr) {
+        index_variable = new VariableInformation(VariableType::NUMBER, nullptr);
+    }
+
+    node->action->accept(child);
+
+    // we love memory safety
+    delete internal_var_type;
+
+    if(index_variable != nullptr) {
+        delete index_variable;
+    }
 }
 
 void TypeLocatingVisitor::visit(FunctionCallNodeExpression *node)
@@ -195,6 +262,11 @@ void TypeLocatingVisitor::visit(FunctionCallNodeExpression *node)
     }else {
         errored = true;
     }
+}
+
+TypeLocatingVisitor TypeLocatingVisitor::makeChild()
+{
+    return TypeLocatingVisitor(variables, result);
 }
 
 // void ArraySizeVisitor::visit(LiteralNumberNode *node)
@@ -270,3 +342,27 @@ void TypeLocatingVisitor::visit(FunctionCallNodeExpression *node)
 //         return true;
 //     }
 // }
+
+void ArraySizeVisitor::visit(ArrayNode *node)
+{
+    size++;
+    node->values->expressions[0]->accept(*this);
+}
+
+void ArraySizeVisitor::visit(BinOpNode *node)
+{
+    //ignore
+}
+
+void ArraySizeVisitor::visit(VariableNode *node)
+{
+    if(variables == nullptr) {
+        return;
+    }
+    
+    if(variables->find(node->s) == variables->end()) {
+        return;
+    }
+
+    size = (*variables)[node->s]->array_depth;
+}

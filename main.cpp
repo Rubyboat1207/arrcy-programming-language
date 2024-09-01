@@ -2,17 +2,20 @@
 #include "generated/parser.tab.hpp"
 #include <iostream>
 #include "preprocessor.hpp"
+#include "codegen.hpp"
+#include <fstream>
+#include <cstdlib>
 
 void scan_string(const char* str);
 StatementNode* getRoot();
 
 #define PREPROCESS
+#define CODEGEN
 
 int main() {
     scan_string(
         "x = 2;"
-        "y = [3];"
-        "x = max(1, x);"
+        "x += 5;"
         "print(x);"
     );
     yyparse();
@@ -29,6 +32,23 @@ int main() {
     }else {
         std::cout << "No errors found." << std::endl;
     }
+    #ifdef CODEGEN
+    
+    CPPCodeGenerator codegen{};
+
+    std::string code = codegen.generate(root, res);
+
+    std::cout << code << std::endl;
+
+    std::ofstream file;
+    file.open("out.cpp");
+    file << code;
+    file.close();
+
+    system("g++ out.cpp -o out.exe");
+
     #endif
+    #endif
+    
     return 0;
 }
