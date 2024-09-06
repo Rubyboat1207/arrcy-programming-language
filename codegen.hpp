@@ -11,6 +11,7 @@ struct CodeGenerator : public DefaultNodeVisitor {
     void visit(AssignmentNode* node) override;
     void visit(FunctionCallNodeStatement* node) override;
     void visit(ElementAssignmentNode* node) override;
+    void visit(StatementFunctionNode* node) override;
 protected:
     virtual std::string generate_variable_declaration(std::string name, VariableInformation* variable_info) = 0;
     virtual std::string generate_variable_assignment(std::string var, ExpressionNode* expr) = 0;
@@ -18,7 +19,7 @@ protected:
     virtual std::string generate_prefix() = 0;
     virtual std::string generate_suffix() = 0;
 
-    virtual std::string generate_foreach_loop(StatementFunctionNode node, VariableInformation* variable_info, std::string name) = 0;
+    virtual void generate_foreach_loop(StatementFunctionNode* node) = 0;
     virtual std::string generate_compiler_foreach(CodeBlockNode* internal, std::string index_name, int index_count) = 0;
     virtual std::string generate_safe_variable_name() = 0;
     std::string generate_function(FunctionCallNodeStatement* callData);
@@ -37,7 +38,7 @@ protected:
         return "}";
     }
 
-    std::string generate_foreach_loop(StatementFunctionNode node, VariableInformation* variable_info, std::string name) override;
+    void generate_foreach_loop(StatementFunctionNode* node) override;
     std::string generate_print_statement(ArrayElements* callData) override;
     std::string generate_element_assignment(ElementAssignmentNode* node) override;
     std::string generate_compiler_foreach(CodeBlockNode* internal, std::string index_name, int index_count) override;

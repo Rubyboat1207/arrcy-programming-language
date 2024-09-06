@@ -19,12 +19,17 @@ std::string CPPCodeGenerator::generate_variable_declaration(std::string name, Va
 
         equality = " = " + visitor.expr;
     }
+
+    variable_info->most_recent_assignment_expr = variable_info->first_assignment->value;
     
     return type_str + " " + name + array + equality;
 }
 
 std::string CPPCodeGenerator::generate_variable_assignment(std::string var, ExpressionNode* expr)
 {
+    if(global_context->find(var) != global_context->end()) {
+        global_context->at(var)->most_recent_assignment_expr = expr;
+    }
     auto visitor = CPPExpressionGenerator();
     expr->accept(visitor);
     std::string str = var + "=" + visitor.expr;
@@ -32,11 +37,43 @@ std::string CPPCodeGenerator::generate_variable_assignment(std::string var, Expr
     return str;
 }
 
-std::string CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode node, VariableInformation* variable_info, std::string name)
+void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
 {
-    auto var_info = new VariableInformation(variable_info);
-    var_info->array_depth -= 1;
-    return "for(" + generate_variable_declaration(node.internal_variable->s, var_info) + " : " + name + ") {";
+    CPPExpressionGenerator visitor;
+    node->array->accept(visitor);
+
+    if(node->index_variable != nullptr) {
+
+        int size = 0;
+
+        ArraySizeVisitor size_visitor{};
+
+        size_visitor.variables = global_context;
+
+        node->array->accept(size_visitor);
+
+        str += "for(int " + node->index_variable->s + " = 0; " + node->index_variable->s + " < " + std::to_string(size_visitor.size) + "; " + node->index_variable->s + "++) {";
+        str += "\n#define " + node->internal_variable->s + " " + visitor.expr + "[" + node->index_variable->s + "]" + "\n";
+        node->action->accept(*this);
+        CodeBlockNode* action_block = dynamic_cast<CodeBlockNode*>(node->action);
+        if(action_block == nullptr) {
+            str += ";";
+        }
+        str += "\n#undef " + node->internal_variable->s + "\n";
+    }else {
+        str += "for(auto " + node->internal_variable->s + " : " + visitor.expr + ") {";
+        node->action->accept(*this);
+        CodeBlockNode* action_block = dynamic_cast<CodeBlockNode*>(node->action);
+        if(action_block == nullptr) {
+            str += ";";
+        }
+    }
+    
+    
+
+    
+
+    str += "}";
 }
 
 std::string CPPCodeGenerator::generate_compiler_foreach(CodeBlockNode* internal, std::string index_name, int index_count)
@@ -213,6 +250,11 @@ void CodeGenerator::visit(FunctionCallNodeStatement *node)
 void CodeGenerator::visit(ElementAssignmentNode *node)
 {
     str += generate_element_assignment(node);
+}
+
+void CodeGenerator::visit(StatementFunctionNode *node)
+{
+    generate_foreach_loop(node);
 }
 
 std::string CodeGenerator::generate_function(FunctionCallNodeStatement* callData)

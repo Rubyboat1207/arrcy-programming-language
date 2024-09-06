@@ -162,7 +162,7 @@ void TypeLocatingVisitor::visit(ArrayNode *node)
 
     node->accept(size_visitor);
 
-    array_depth = size_visitor.size;
+    array_depth = size_visitor.depth;
     
     ret_value = VariableType::ARRAY;
 }
@@ -187,7 +187,7 @@ void TypeLocatingVisitor::visit(BinOpNode *node)
         ret_value = VariableType::NUMBER;
     } else {
         ret_value = VariableType::ARRAY;
-        array_depth = size_visitor.size;
+        array_depth = size_visitor.depth;
     }
 }
 
@@ -218,7 +218,7 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
     size_visitor.variables = variables;
 
     node->array->accept(size_visitor);
-    array_depth = size_visitor.size;
+    array_depth = size_visitor.depth;
     
     TypeLocatingVisitor child = makeChild();
 
@@ -353,7 +353,8 @@ TypeLocatingVisitor TypeLocatingVisitor::makeChild()
 
 void ArraySizeVisitor::visit(ArrayNode *node)
 {
-    size++;
+    depth++;
+    size = node->values->expressions.size();
     node->values->expressions[0]->accept(*this);
 }
 
@@ -372,5 +373,8 @@ void ArraySizeVisitor::visit(VariableNode *node)
         return;
     }
 
-    size = (*variables)[node->s]->array_depth;
+    auto variable = variables->at(node->s);
+
+    variable->most_recent_assignment_expr->accept(*this);
+    depth = variable->array_depth;
 }

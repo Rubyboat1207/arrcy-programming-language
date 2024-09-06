@@ -32,6 +32,7 @@ enum class VariableType {
 struct VariableInformation {
     VariableType type;
     AssignmentNode* first_assignment;
+    ExpressionNode* most_recent_assignment_expr;
     bool is_ever_read = false;
     int array_depth = 0;
 
@@ -104,6 +105,7 @@ struct TypeLocatingVisitor : ExpressionVisitor {
 };
 
 struct ArraySizeVisitor : DefaultExpressionVisitor {
+    int depth = 0;
     int size = 0;
     VariableContext* variables;
     void visit(ArrayNode* node) override;

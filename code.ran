@@ -1,6 +1,5 @@
-x = [5];
+x = [0, 0, 0, 0];
 
-x += 2;
-print(x[0]);
+(x)*test, i { test += i + 1 };
 
-z = 2;
+(x)*test{ print(test) };
