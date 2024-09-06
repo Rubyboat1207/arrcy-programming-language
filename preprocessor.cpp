@@ -54,7 +54,7 @@ PreprocessResult preprocess(StatementNode *root)
                 info->type = assigned_type;
                 (*variables)[assignment->name] = info;
                 info->array_depth = type_visitor.array_depth;
-                info->initial_value = assignment->value;
+                info->first_assignment = assignment;
             }else {
                 VariableInformation* info = (*variables)[assignment->name];
                 auto defined_type = info->type;

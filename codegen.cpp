@@ -13,9 +13,9 @@ std::string CPPCodeGenerator::generate_variable_declaration(std::string name, Va
 
     std::string equality;
 
-    if(variable_info->initial_value != nullptr) {
+    if(variable_info->first_assignment != nullptr) {
         auto visitor = CPPExpressionGenerator();
-        variable_info->initial_value->accept(visitor);
+        variable_info->first_assignment->value->accept(visitor);
 
         equality = " = " + visitor.expr;
     }
@@ -37,6 +37,17 @@ std::string CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode node, 
     auto var_info = new VariableInformation(variable_info);
     var_info->array_depth -= 1;
     return "for(" + generate_variable_declaration(node.internal_variable->s, var_info) + " : " + name + ") {";
+}
+
+std::string CPPCodeGenerator::generate_compiler_foreach(CodeBlockNode* internal, std::string index_name, int index_count)
+{
+    std::string code = "for(int " + index_name + " = 0; " + index_name + " < " + std::to_string(index_count) + "; " + index_name + "++) {";
+    for(StatementNode* node : internal->stmts) {
+        node->accept(*this);
+        code += ";\n";
+    }
+
+    return code;
 }
 
 std::string CPPCodeGenerator::generate_print_statement(ArrayElements* callData)
@@ -153,11 +164,11 @@ std::string CodeGenerator::generate(StatementNode* rootNode, PreprocessResult re
     }
 
     str += generate_prefix();
-    if(result.opt_variables.has_value()) {
-        for(const auto & pair : (*result.opt_variables.value())) {
-            str += generate_variable_declaration(pair.first, pair.second) + ";\n";
-        }
-    }
+    // if(result.opt_variables.has_value()) {
+    //     for(const auto & pair : (*result.opt_variables.value())) {
+    //         str += generate_variable_declaration(pair.first, pair.second) + ";\n";
+    //     }
+    // }
     rootNode->accept(*this);
     str += generate_suffix();
     return str;
@@ -166,20 +177,6 @@ std::string CodeGenerator::generate(StatementNode* rootNode, PreprocessResult re
 void CodeGenerator::visit(CodeBlockNode *node)
 {
     for(StatementNode* node : node->stmts) {
-        AssignmentNode* assignment = dynamic_cast<AssignmentNode*>(node);
-        bool should_continue = false;
-        if(assignment != nullptr) {
-            for(const auto var : *global_context) {
-                if(var.second->initial_value == assignment->value) {
-                    should_continue = true;
-                    break;
-                }
-            }
-        }
-
-        if(should_continue) {
-            continue;
-        }
         node->accept(*this);
         str += ";\n";
     }
@@ -187,6 +184,24 @@ void CodeGenerator::visit(CodeBlockNode *node)
 
 void CodeGenerator::visit(AssignmentNode *node)
 {
+    if(global_context->find(node->name) != global_context->end()) {
+        auto variable_info = global_context->at(node->name);
+        
+        if(variable_info->first_assignment == node) {
+            str += generate_variable_declaration(node->name, variable_info);
+            return;
+        }
+        // else {
+        //     if(variable_info->type == VariableType::ARRAY) {
+        //         CodeBlockNode* internal = new CodeBlockNode();
+        //         internal->stmts.push_back(node);
+        //         int size = ((ArrayNode*) variable_info->first_assignment->value)->values->expressions.size();
+        //         str += generate_compiler_foreach(internal, generate_safe_variable_name(), size);
+        //     }
+        // }
+
+        
+    }
     str += generate_variable_assignment(node->name, node->value);
 }
 

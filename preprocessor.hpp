@@ -31,18 +31,18 @@ enum class VariableType {
 
 struct VariableInformation {
     VariableType type;
-    ExpressionNode* initial_value;
+    AssignmentNode* first_assignment;
     bool is_ever_read = false;
     int array_depth = 0;
 
     VariableInformation(VariableInformation* other) {
         type = other->type;
-        initial_value = other->initial_value;
+        first_assignment = other->first_assignment;
         is_ever_read = other->is_ever_read;
         array_depth = other->array_depth;
     }
 
-    VariableInformation(VariableType type, ExpressionNode* initial_value) : type(type), initial_value(initial_value) {}
+    VariableInformation(VariableType type, AssignmentNode* first_assignment) : type(type), first_assignment(first_assignment) {}
     VariableInformation() {}
 };
 

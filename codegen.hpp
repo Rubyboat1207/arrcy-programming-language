@@ -19,6 +19,8 @@ protected:
     virtual std::string generate_suffix() = 0;
 
     virtual std::string generate_foreach_loop(StatementFunctionNode node, VariableInformation* variable_info, std::string name) = 0;
+    virtual std::string generate_compiler_foreach(CodeBlockNode* internal, std::string index_name, int index_count) = 0;
+    virtual std::string generate_safe_variable_name() = 0;
     std::string generate_function(FunctionCallNodeStatement* callData);
 
     virtual std::string generate_print_statement(ArrayElements* callData) = 0;
@@ -38,6 +40,18 @@ protected:
     std::string generate_foreach_loop(StatementFunctionNode node, VariableInformation* variable_info, std::string name) override;
     std::string generate_print_statement(ArrayElements* callData) override;
     std::string generate_element_assignment(ElementAssignmentNode* node) override;
+    std::string generate_compiler_foreach(CodeBlockNode* internal, std::string index_name, int index_count) override;
+    std::string generate_safe_variable_name() override {
+        char* buffer = new char[50];
+
+        sprintf(buffer, "generated_%d", rand());
+        
+        while(global_context->find(buffer) != global_context->end()) {
+            sprintf(buffer, "generated_%d", rand());
+        }
+
+        return std::string(buffer);
+    }
 };
 
 struct CPPExpressionGenerator : public ExpressionVisitor {
