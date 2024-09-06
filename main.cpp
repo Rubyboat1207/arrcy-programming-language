@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
     file << code;
     file.close();
 
-    system("g++ out.cpp -o out.exe");
+    system("g++ -O2 out.cpp -o out.exe");
 
     #endif
     #endif

@@ -1,5 +1,10 @@
-x = [0, 0, 0, 0];
+x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+z = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
-(x)*test, i { test += i + 1 };
+b = [0,0,0,0,0,0,0,0,0,0]
 
-(x)*test{ print(test) };
+(x)*item, index {
+    b[index] = item * z[index];
+
+    print(b[index])
+}

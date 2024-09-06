@@ -355,7 +355,11 @@ void ArraySizeVisitor::visit(ArrayNode *node)
 {
     depth++;
     size = node->values->expressions.size();
+    if(size == 0) {
+        return;
+    }
     node->values->expressions[0]->accept(*this);
+    first_element = node->values->expressions[0];
 }
 
 void ArraySizeVisitor::visit(BinOpNode *node)
@@ -375,6 +379,10 @@ void ArraySizeVisitor::visit(VariableNode *node)
 
     auto variable = variables->at(node->s);
 
-    variable->most_recent_assignment_expr->accept(*this);
+    if(variable->most_recent_assignment_expr == nullptr) {
+        variable->first_assignment->value->accept(*this);
+    }else {
+        variable->most_recent_assignment_expr->accept(*this);
+    }
     depth = variable->array_depth;
 }

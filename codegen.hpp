@@ -57,6 +57,7 @@ protected:
 
 struct CPPExpressionGenerator : public ExpressionVisitor {
     std::string expr;
+    VariableContext* variables;
 
     void visit(LiteralNumberNode* node) override;
     void visit(VariableNode* node) override;

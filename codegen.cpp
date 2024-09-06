@@ -8,7 +8,7 @@ std::string CPPCodeGenerator::generate_variable_declaration(std::string name, Va
     std::string type_str = "double";
     std::string array = "";
     for(int i = 0; i < variable_info->array_depth; i++) {
-        array += "[]";
+        array += "*";
     }
 
     std::string equality;
@@ -22,7 +22,7 @@ std::string CPPCodeGenerator::generate_variable_declaration(std::string name, Va
 
     variable_info->most_recent_assignment_expr = variable_info->first_assignment->value;
     
-    return type_str + " " + name + array + equality;
+    return type_str + array + " " + name + equality;
 }
 
 std::string CPPCodeGenerator::generate_variable_assignment(std::string var, ExpressionNode* expr)
@@ -42,35 +42,61 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
     CPPExpressionGenerator visitor;
     node->array->accept(visitor);
 
+    int size = 0;
+
+    ArraySizeVisitor size_visitor{};
+    size_visitor.variables = global_context;
+    node->array->accept(size_visitor);
+
+    TypeLocatingVisitor type_visitor{global_context, nullptr};
+    if(size_visitor.first_element == nullptr) {
+        return;
+    }
+    size_visitor.first_element->accept(type_visitor);
+
+    VariableContext* inner_context = new VariableContext();
+    inner_context->insert(global_context->begin(), global_context->end());
+    
+    if(type_visitor.ret_value == VariableType::NUMBER) {
+        inner_context->insert({node->internal_variable->s, new VariableInformation(VariableType::NUMBER, new AssignmentNode(node->internal_variable->s, size_visitor.first_element))});
+    }else {
+        auto var_info = new VariableInformation(VariableType::ARRAY, new AssignmentNode(node->internal_variable->s, size_visitor.first_element));
+        var_info->most_recent_assignment_expr = size_visitor.first_element;
+        inner_context->insert({node->internal_variable->s, var_info});
+    }
+
+    VariableContext *old_context = global_context;
+
+    global_context = inner_context;
+
+    size_visitor.variables = global_context;
+
     if(node->index_variable != nullptr) {
-
-        int size = 0;
-
-        ArraySizeVisitor size_visitor{};
-
-        size_visitor.variables = global_context;
-
-        node->array->accept(size_visitor);
-
         str += "for(int " + node->index_variable->s + " = 0; " + node->index_variable->s + " < " + std::to_string(size_visitor.size) + "; " + node->index_variable->s + "++) {";
         str += "\n#define " + node->internal_variable->s + " " + visitor.expr + "[" + node->index_variable->s + "]" + "\n";
+        
         node->action->accept(*this);
+        
         CodeBlockNode* action_block = dynamic_cast<CodeBlockNode*>(node->action);
         if(action_block == nullptr) {
             str += ";";
         }
         str += "\n#undef " + node->internal_variable->s + "\n";
     }else {
-        str += "for(auto " + node->internal_variable->s + " : " + visitor.expr + ") {";
+        std::string idx_var = generate_safe_variable_name();
+        str += "for(int " + idx_var + " = 0; " + idx_var + " < " + std::to_string(size_visitor.size) + "; " + idx_var + "++) {";
+        str += "\n#define " + node->internal_variable->s + " " + visitor.expr + "[" + idx_var + "]" + "\n";
         node->action->accept(*this);
         CodeBlockNode* action_block = dynamic_cast<CodeBlockNode*>(node->action);
         if(action_block == nullptr) {
             str += ";";
         }
+        str += "\n#undef " + node->internal_variable->s + "\n";
     }
     
     
-
+    global_context = old_context;
+    delete inner_context;
     
 
     str += "}";
@@ -132,7 +158,19 @@ void CPPExpressionGenerator::visit(VariableNode *node)
 
 void CPPExpressionGenerator::visit(ArrayNode *node)
 {
-    expr += "{";
+    ArraySizeVisitor size_visitor{};
+
+    size_visitor.variables = variables;
+
+    node->accept(size_visitor);
+    
+    std::string stars = "";
+
+    for(int i = 0; i < size_visitor.depth - 1; i++) {
+        stars += "*";
+    }
+
+    expr += "new double" + stars + "[" + std::to_string(size_visitor.size) + "] {";
 
     if(node->values != nullptr) {
         int i = 0;
