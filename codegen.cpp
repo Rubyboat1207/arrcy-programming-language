@@ -1,15 +1,26 @@
 #include "codegen.hpp"
 #include <string>
 #include <sstream>
+#include <math.h>
 
 std::string CPPCodeGenerator::generate_variable_declaration(std::string name, VariableInformation* variable_info)
 {
     std::string type_str = "double";
+    std::string array = "";
     for(int i = 0; i < variable_info->array_depth; i++) {
-        type_str += "[]";
+        array += "[]";
     }
 
-    return type_str + " " + name;
+    std::string equality;
+
+    if(variable_info->initial_value != nullptr) {
+        auto visitor = CPPExpressionGenerator();
+        variable_info->initial_value->accept(visitor);
+
+        equality = " = " + visitor.expr;
+    }
+    
+    return type_str + " " + name + array + equality;
 }
 
 std::string CPPCodeGenerator::generate_variable_assignment(std::string var, ExpressionNode* expr)
@@ -44,9 +55,26 @@ std::string CPPCodeGenerator::generate_print_statement(ArrayElements* callData)
     return code;
 }
 
+std::string CPPCodeGenerator::generate_element_assignment(ElementAssignmentNode *node)
+{
+    auto indexVisitor = CPPExpressionGenerator();
+    node->index->accept(indexVisitor);
+
+    auto valueVisitor = CPPExpressionGenerator();
+    node->value->accept(valueVisitor);
+
+    std::string str = node->name + "[" + indexVisitor.expr + "] " + "=" + valueVisitor.expr;
+
+    return str;
+}
+
 void CPPExpressionGenerator::visit(LiteralNumberNode *node)
 {
-    expr += std::to_string(node->value);
+    if(node->value == std::floor(node->value)) {
+        expr += std::to_string((int) node->value);
+    }else {
+        expr += std::to_string(node->value);
+    }
 }
 
 void CPPExpressionGenerator::visit(VariableNode *node)
@@ -88,10 +116,13 @@ void CPPExpressionGenerator::visit(BinOpNode *node)
         case ExpressionOperation::GTEQ:      expr += ">="; break;    // Greater than or equal to
         case ExpressionOperation::EQ:        expr += "=="; break;      // Equal to
         case ExpressionOperation::INEQ:      expr += "!="; break;    // Not equal to
-        case ExpressionOperation::ACCESS:    expr += "[]"; break;  // Access operation
+        case ExpressionOperation::ACCESS:    expr += "["; break;  // Access operation
         default:                             expr += "???"; break;
     }
     node->b->accept(*this);
+    if(node->operation == ExpressionOperation::ACCESS) {
+        expr += "]";
+    }
 }
 
 void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
@@ -115,6 +146,12 @@ void CPPExpressionGenerator::visit(FunctionCallNodeExpression *node)
 
 std::string CodeGenerator::generate(StatementNode* rootNode, PreprocessResult result)
 {
+    global_context = nullptr;
+
+    if(result.opt_variables.has_value()) {
+        global_context = result.opt_variables.value();
+    }
+
     str += generate_prefix();
     if(result.opt_variables.has_value()) {
         for(const auto & pair : (*result.opt_variables.value())) {
@@ -129,6 +166,20 @@ std::string CodeGenerator::generate(StatementNode* rootNode, PreprocessResult re
 void CodeGenerator::visit(CodeBlockNode *node)
 {
     for(StatementNode* node : node->stmts) {
+        AssignmentNode* assignment = dynamic_cast<AssignmentNode*>(node);
+        bool should_continue = false;
+        if(assignment != nullptr) {
+            for(const auto var : *global_context) {
+                if(var.second->initial_value == assignment->value) {
+                    should_continue = true;
+                    break;
+                }
+            }
+        }
+
+        if(should_continue) {
+            continue;
+        }
         node->accept(*this);
         str += ";\n";
     }
@@ -142,6 +193,11 @@ void CodeGenerator::visit(AssignmentNode *node)
 void CodeGenerator::visit(FunctionCallNodeStatement *node)
 {
     str += generate_function(node);
+}
+
+void CodeGenerator::visit(ElementAssignmentNode *node)
+{
+    str += generate_element_assignment(node);
 }
 
 std::string CodeGenerator::generate_function(FunctionCallNodeStatement* callData)

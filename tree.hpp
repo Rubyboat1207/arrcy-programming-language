@@ -55,6 +55,14 @@ struct AssignmentNode : public StatementNode {
     void accept(NodeVisitor& visitor) override;
     
 };
+
+struct ElementAssignmentNode : public AssignmentNode {
+    std::ostream& print(std::ostream& os) const override;
+    ExpressionNode* index;
+
+    ElementAssignmentNode(std::string name, ExpressionNode* value, ExpressionNode* index) : AssignmentNode(name, value), index(index) {}
+    void accept(NodeVisitor& visitor) override;
+};
 // exprs
 
 #define ALGEBRAIC_OPS 0b10000000
@@ -241,6 +249,7 @@ public:
     virtual void visit(StatementFunctionNode* node) = 0;
     virtual void visit(AssignmentNode* node) = 0;
     virtual void visit(CodeBlockNode* node) = 0;
+    virtual void visit(ElementAssignmentNode* node) = 0;
 };
 
 class DefaultNodeVisitor : public NodeVisitor {
@@ -255,6 +264,7 @@ public:
     void visit(StatementFunctionNode* node) {};
     void visit(AssignmentNode* node) {};
     void visit(CodeBlockNode* node) {};
+    void visit(ElementAssignmentNode* node) {};
 };
 
 #endif

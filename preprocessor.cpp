@@ -54,15 +54,23 @@ PreprocessResult preprocess(StatementNode *root)
                 info->type = assigned_type;
                 (*variables)[assignment->name] = info;
                 info->array_depth = type_visitor.array_depth;
+                info->initial_value = assignment->value;
             }else {
-                auto defined_type = (*variables)[assignment->name]->type;
+                VariableInformation* info = (*variables)[assignment->name];
+                auto defined_type = info->type;
 
                 if(defined_type != VariableType::ANY && assigned_type != VariableType::ANY) {
                     if(defined_type != assigned_type) {
                         result.messages.push_back(PreprocessorMessage("Variable " + assignment->name + " is being assigned a value of a different type.", PreprocessorMessageType::ERROR));
                     }
-                    if((*variables)[assignment->name]->array_depth != type_visitor.array_depth) {
-                        result.messages.push_back(PreprocessorMessage("Variable " + assignment->name + " is being assigned an array of a different depth (" + std::to_string((*variables)[assignment->name]->array_depth) + " <- " + std::to_string(type_visitor.array_depth) + ").", PreprocessorMessageType::ERROR));
+                    int effective_depth = info->array_depth;
+
+                    bool isElementAssignment = dynamic_cast<ElementAssignmentNode*>(assignment) != nullptr;
+                    if(isElementAssignment) {
+                        effective_depth -= 1;
+                    }
+                    if(effective_depth != type_visitor.array_depth) {
+                        result.messages.push_back(PreprocessorMessage("Variable " + assignment->name + " is being assigned an array of a different depth (" + std::to_string((*variables)[assignment->name]->array_depth) + " <- " + std::to_string(effective_depth) + ").", PreprocessorMessageType::ERROR));
                     }
                 }
             }

@@ -2,7 +2,8 @@
 BIN = bin
 
 run: build
-	./$(BIN)/main.exe
+	./$(BIN)/main.exe code.ran
+	./out.exe
 
 build: $(BIN) build_lexparse
 	g++ -g -mavx2 -march=native -std=c++17 -Wno-register tree.cpp generated/lex.yy.c generated/parser.tab.cpp preprocessor.cpp codegen.cpp main.cpp -o $(BIN)/main.exe

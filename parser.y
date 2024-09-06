@@ -83,6 +83,12 @@ statement:
     IDENT ASSIGN expression {
         $$ = new AssignmentNode($1, $3);
     } |
+    IDENT LBRACKET expression RBRACKET ASSIGN expression {
+        $$ = new ElementAssignmentNode($1, $6, $3);
+    } |
+    IDENT LBRACKET expression RBRACKET modification_assignment {
+        $$ = new ElementAssignmentNode($1, new BinOpNode(new BinOpNode(new VariableNode($1), $3, ExpressionOperation::ACCESS), $5->value, $5->operation), $3);
+    } |
     IDENT modification_assignment {
         $$ = new AssignmentNode($1, new BinOpNode(new VariableNode($1), $2->value, $2->operation));
         delete $2;

@@ -273,3 +273,13 @@ std::ostream& FunctionCallNodeStatement::print(std::ostream &os) const {
 
     return os << ")";
 }
+
+std::ostream &ElementAssignmentNode::print(std::ostream &os) const
+{
+    return os << name << "[" << *index << "] = " << *value;
+}
+
+void ElementAssignmentNode::accept(NodeVisitor &visitor)
+{
+    visitor.visit(this);
+}

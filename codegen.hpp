@@ -4,15 +4,17 @@
 struct CodeGenerator : public DefaultNodeVisitor {
     std::string str;
 
-
+    VariableContext* global_context;
     std::string generate(StatementNode* rootNode, PreprocessResult result);
     
     void visit(CodeBlockNode* node) override;
     void visit(AssignmentNode* node) override;
     void visit(FunctionCallNodeStatement* node) override;
+    void visit(ElementAssignmentNode* node) override;
 protected:
     virtual std::string generate_variable_declaration(std::string name, VariableInformation* variable_info) = 0;
     virtual std::string generate_variable_assignment(std::string var, ExpressionNode* expr) = 0;
+    virtual std::string generate_element_assignment(ElementAssignmentNode* node) = 0;
     virtual std::string generate_prefix() = 0;
     virtual std::string generate_suffix() = 0;
 
@@ -35,6 +37,7 @@ protected:
 
     std::string generate_foreach_loop(StatementFunctionNode node, VariableInformation* variable_info, std::string name) override;
     std::string generate_print_statement(ArrayElements* callData) override;
+    std::string generate_element_assignment(ElementAssignmentNode* node) override;
 };
 
 struct CPPExpressionGenerator : public ExpressionVisitor {
