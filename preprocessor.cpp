@@ -224,6 +224,8 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
 
     VariableInformation* internal_var_type = new VariableInformation();
     VariableInformation* index_variable = nullptr;
+    internal_var_type->first_assignment = nullptr;
+    internal_var_type->most_recent_assignment_expr = nullptr;
 
     if(array_depth == 1) {
         internal_var_type->type = VariableType::NUMBER;
@@ -236,6 +238,8 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
 
     if(node->index_variable != nullptr) {
         index_variable = new VariableInformation(VariableType::NUMBER, nullptr);
+        index_variable->first_assignment = nullptr;
+        index_variable->most_recent_assignment_expr = nullptr;
     }
 
     node->action->accept(child);
@@ -380,8 +384,12 @@ void ArraySizeVisitor::visit(VariableNode *node)
     auto variable = variables->at(node->s);
 
     if(variable->most_recent_assignment_expr == nullptr) {
+        if(variable->first_assignment == nullptr) {
+            return;
+        }
         variable->first_assignment->value->accept(*this);
     }else {
+        std::cout << *node << std::endl;
         variable->most_recent_assignment_expr->accept(*this);
     }
     depth = variable->array_depth;

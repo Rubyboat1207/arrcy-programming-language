@@ -10,11 +10,13 @@ std::string CPPCodeGenerator::generate_variable_declaration(std::string name, Va
     for(int i = 0; i < variable_info->array_depth; i++) {
         array += "*";
     }
-
+    std::string setup = "";
     std::string equality;
 
     if(variable_info->first_assignment != nullptr) {
         auto visitor = CPPExpressionGenerator();
+        visitor.codegen = this;
+        setup = visitor.pre_statement_setup;
         variable_info->first_assignment->value->accept(visitor);
 
         equality = " = " + visitor.expr;
@@ -22,7 +24,7 @@ std::string CPPCodeGenerator::generate_variable_declaration(std::string name, Va
 
     variable_info->most_recent_assignment_expr = variable_info->first_assignment->value;
     
-    return type_str + array + " " + name + equality;
+    return setup + type_str + array + " " + name + equality;
 }
 
 std::string CPPCodeGenerator::generate_variable_assignment(std::string var, ExpressionNode* expr)
@@ -31,8 +33,9 @@ std::string CPPCodeGenerator::generate_variable_assignment(std::string var, Expr
         global_context->at(var)->most_recent_assignment_expr = expr;
     }
     auto visitor = CPPExpressionGenerator();
+    visitor.codegen = this;
     expr->accept(visitor);
-    std::string str = var + "=" + visitor.expr;
+    std::string str = visitor.pre_statement_setup + var + "=" + visitor.expr;
 
     return str;
 }
@@ -72,6 +75,7 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
     size_visitor.variables = global_context;
 
     if(node->index_variable != nullptr) {
+        str += visitor.pre_statement_setup;
         str += "for(int " + node->index_variable->s + " = 0; " + node->index_variable->s + " < " + std::to_string(size_visitor.size) + "; " + node->index_variable->s + "++) {";
         str += "\n#define " + node->internal_variable->s + " " + visitor.expr + "[" + node->index_variable->s + "]" + "\n";
         
@@ -83,6 +87,7 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
         }
         str += "\n#undef " + node->internal_variable->s + "\n";
     }else {
+        str += visitor.pre_statement_setup;
         std::string idx_var = generate_safe_variable_name();
         str += "for(int " + idx_var + " = 0; " + idx_var + " < " + std::to_string(size_visitor.size) + "; " + idx_var + "++) {";
         str += "\n#define " + node->internal_variable->s + " " + visitor.expr + "[" + idx_var + "]" + "\n";
@@ -119,8 +124,9 @@ std::string CPPCodeGenerator::generate_print_statement(ArrayElements* callData)
 
     for(ExpressionNode* expr : callData->expressions) {
         auto visitor = CPPExpressionGenerator();
+        visitor.codegen = this;
         expr->accept(visitor);
-
+        code.insert(0, visitor.pre_statement_setup);
         code += visitor.expr + "<<";
     }
 
@@ -132,12 +138,16 @@ std::string CPPCodeGenerator::generate_print_statement(ArrayElements* callData)
 std::string CPPCodeGenerator::generate_element_assignment(ElementAssignmentNode *node)
 {
     auto indexVisitor = CPPExpressionGenerator();
+    indexVisitor.codegen = this;
     node->index->accept(indexVisitor);
 
     auto valueVisitor = CPPExpressionGenerator();
+    indexVisitor.codegen = this;
     node->value->accept(valueVisitor);
 
-    std::string str = node->name + "[" + indexVisitor.expr + "] " + "=" + valueVisitor.expr;
+    // intentionally ignore pre statement setup here for index because it should never be an array.
+
+    std::string str = valueVisitor.pre_statement_setup + node->name + "[" + indexVisitor.expr + "] " + "=" + valueVisitor.expr;
 
     return str;
 }
@@ -213,7 +223,51 @@ void CPPExpressionGenerator::visit(BinOpNode *node)
 
 void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
 {
-    expr += "/* TODO */";
+    TypeLocatingVisitor vis = TypeLocatingVisitor(variables, nullptr);
+    node->array->accept(vis);
+    ArraySizeVisitor arr_vis{};
+    arr_vis.variables = variables;
+    node->array->accept(arr_vis);
+
+    if(node->type == ExpressionFunctionType::MAP) {
+        std::string temp = this->codegen->generate_safe_variable_name();
+        ArrayElements* elem = new ArrayElements();
+
+        for(int i = 0; i < arr_vis.size; i++) {
+            if(i == 0) {
+                ArrayElements* outer = elem;
+                for(int depth; depth < arr_vis.depth; depth++) {
+                    outer = new ArrayElements();
+                    elem->expressions.push_back(new ArrayNode(outer));
+                }
+                continue;
+            }
+            elem->expressions.push_back(new LiteralNumberNode(0));
+        }
+
+        pre_statement_setup += codegen->generate_variable_assignment(temp, new ArrayNode(elem));
+        
+        delete elem;
+
+        std::string index_var = this->codegen->generate_safe_variable_name();
+        if(node->index_variable != nullptr) {
+            index_var = node->index_variable->s;
+        }
+
+        CPPExpressionGenerator arr_gen = CPPExpressionGenerator();
+        node->array->accept(arr_gen);
+
+        pre_statement_setup += "for(int " + index_var + " = 0; " + index_var + " < " + std::to_string(arr_vis.size) + "; " + index_var + "++) {\n";
+        pre_statement_setup += arr_gen.pre_statement_setup;
+        pre_statement_setup += "\n#define " + node->internal_variable->s + " " + arr_gen.expr + index_var + "[" + index_var + "]";
+
+        CPPExpressionGenerator action_gen = CPPExpressionGenerator();
+        node->action->accept(action_gen);
+
+        pre_statement_setup += action_gen.pre_statement_setup + "\n" + temp + "[" + index_var + "] = " + action_gen.expr + ";";
+
+        expr += temp;
+    }
 }
 
 void CPPExpressionGenerator::visit(FunctionCallNodeExpression *node)
@@ -266,16 +320,6 @@ void CodeGenerator::visit(AssignmentNode *node)
             str += generate_variable_declaration(node->name, variable_info);
             return;
         }
-        // else {
-        //     if(variable_info->type == VariableType::ARRAY) {
-        //         CodeBlockNode* internal = new CodeBlockNode();
-        //         internal->stmts.push_back(node);
-        //         int size = ((ArrayNode*) variable_info->first_assignment->value)->values->expressions.size();
-        //         str += generate_compiler_foreach(internal, generate_safe_variable_name(), size);
-        //     }
-        // }
-
-        
     }
     str += generate_variable_assignment(node->name, node->value);
 }

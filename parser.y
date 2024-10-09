@@ -14,6 +14,8 @@ StatementNode* root;
 
 %}
 
+%debug
+
 %union {
     double float_val;
     char* str;

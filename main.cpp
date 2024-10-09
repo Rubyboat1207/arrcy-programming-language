@@ -8,6 +8,7 @@
 #include <fstream>
 
 void scan_string(const char* str);
+extern int yydebug;
 StatementNode* getRoot();
 
 #define PREPROCESS
@@ -16,6 +17,7 @@ StatementNode* getRoot();
 int main(int argc, char* argv[]) {
     std::fstream codeFile{};
     codeFile.open(argv[1]);
+    yydebug = 0;
 
     std::string code_content;
 

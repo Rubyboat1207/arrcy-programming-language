@@ -28,7 +28,7 @@ protected:
 };
 
 struct CPPCodeGenerator : public CodeGenerator {
-protected:
+public:
     std::string generate_variable_declaration(std::string name, VariableInformation* variable_info) override;
     std::string generate_variable_assignment(std::string var, ExpressionNode* expr) override;
     std::string generate_prefix() {
@@ -57,7 +57,9 @@ protected:
 
 struct CPPExpressionGenerator : public ExpressionVisitor {
     std::string expr;
+    std::string pre_statement_setup;
     VariableContext* variables;
+    CPPCodeGenerator* codegen;
 
     void visit(LiteralNumberNode* node) override;
     void visit(VariableNode* node) override;
