@@ -2,7 +2,7 @@
 BIN = bin
 
 run: build
-	./$(BIN)/main.exe code.ran
+	./$(BIN)/main.exe code.rcy
 	./out.exe
 
 build: $(BIN) build_lexparse

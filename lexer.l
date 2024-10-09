@@ -37,6 +37,7 @@ void scan_string(const char* str)
 "{"                { return LCURLY;}
 "}"                { return RCURLY;}
 <<EOF>>            { return END_OF_FILE;}
+"//".*               { /* Do nothing, this is a comment */ }
 [ \t\n]+           { /* Skip whitespace */ }
 .                  { /* Skip any other character */ }
 
