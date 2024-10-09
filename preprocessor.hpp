@@ -112,6 +112,7 @@ struct ArraySizeVisitor : DefaultExpressionVisitor {
     void visit(ArrayNode* node) override;
     void visit(BinOpNode *node) override;
     void visit(VariableNode *node) override;
+    void visit(ExpressionFunctionNode *node) override;
 };
 
 struct FunctionTypeData {

@@ -55,6 +55,7 @@ PreprocessResult preprocess(StatementNode *root)
                 (*variables)[assignment->name] = info;
                 info->array_depth = type_visitor.array_depth;
                 info->first_assignment = assignment;
+                info->most_recent_assignment_expr = assignment->value;
             }else {
                 VariableInformation* info = (*variables)[assignment->name];
                 auto defined_type = info->type;
@@ -238,8 +239,8 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
 
     if(node->index_variable != nullptr) {
         index_variable = new VariableInformation(VariableType::NUMBER, nullptr);
-        index_variable->first_assignment = nullptr;
         index_variable->most_recent_assignment_expr = nullptr;
+        (*child.variables)[node->index_variable->s] = internal_var_type;
     }
 
     node->action->accept(child);
@@ -389,8 +390,12 @@ void ArraySizeVisitor::visit(VariableNode *node)
         }
         variable->first_assignment->value->accept(*this);
     }else {
-        std::cout << *node << std::endl;
         variable->most_recent_assignment_expr->accept(*this);
     }
     depth = variable->array_depth;
+}
+
+void ArraySizeVisitor::visit(ExpressionFunctionNode *node)
+{
+    node->array->accept(*this);
 }

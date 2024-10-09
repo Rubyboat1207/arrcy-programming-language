@@ -1,12 +1,12 @@
 x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 z = (x)#value{
-    value + 1
+    value * 2
 };
 
-b = [0,0,0,0,0,0,0,0,0,0];
+test = (z)#value, index {
+    value * x[index]
+};
 
-(x)*item, index {
-    b[index] = item * z[index];
-
-    print(b[index])
+(test)*value {
+    print(value)
 };

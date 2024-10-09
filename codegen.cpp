@@ -15,10 +15,11 @@ std::string CPPCodeGenerator::generate_variable_declaration(std::string name, Va
 
     if(variable_info->first_assignment != nullptr) {
         auto visitor = CPPExpressionGenerator();
+        visitor.variables = this->global_context;
         visitor.codegen = this;
-        setup = visitor.pre_statement_setup;
         variable_info->first_assignment->value->accept(visitor);
 
+        setup = visitor.pre_statement_setup;
         equality = " = " + visitor.expr;
     }
 
@@ -33,6 +34,7 @@ std::string CPPCodeGenerator::generate_variable_assignment(std::string var, Expr
         global_context->at(var)->most_recent_assignment_expr = expr;
     }
     auto visitor = CPPExpressionGenerator();
+    visitor.variables = this->global_context;
     visitor.codegen = this;
     expr->accept(visitor);
     std::string str = visitor.pre_statement_setup + var + "=" + visitor.expr;
@@ -43,6 +45,7 @@ std::string CPPCodeGenerator::generate_variable_assignment(std::string var, Expr
 void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
 {
     CPPExpressionGenerator visitor;
+    visitor.variables = this->global_context;
     node->array->accept(visitor);
 
     int size = 0;
@@ -124,6 +127,7 @@ std::string CPPCodeGenerator::generate_print_statement(ArrayElements* callData)
 
     for(ExpressionNode* expr : callData->expressions) {
         auto visitor = CPPExpressionGenerator();
+        visitor.variables = this->global_context;
         visitor.codegen = this;
         expr->accept(visitor);
         code.insert(0, visitor.pre_statement_setup);
@@ -138,10 +142,12 @@ std::string CPPCodeGenerator::generate_print_statement(ArrayElements* callData)
 std::string CPPCodeGenerator::generate_element_assignment(ElementAssignmentNode *node)
 {
     auto indexVisitor = CPPExpressionGenerator();
+    indexVisitor.variables = this->global_context;
     indexVisitor.codegen = this;
     node->index->accept(indexVisitor);
 
     auto valueVisitor = CPPExpressionGenerator();
+    valueVisitor.variables = this->global_context;
     indexVisitor.codegen = this;
     node->value->accept(valueVisitor);
 
@@ -234,9 +240,9 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
         ArrayElements* elem = new ArrayElements();
 
         for(int i = 0; i < arr_vis.size; i++) {
-            if(i == 0) {
+            if(i == 0 && arr_vis.depth > 1) {
                 ArrayElements* outer = elem;
-                for(int depth; depth < arr_vis.depth; depth++) {
+                for(int depth = 0; depth < arr_vis.depth - 1; depth++) {
                     outer = new ArrayElements();
                     elem->expressions.push_back(new ArrayNode(outer));
                 }
@@ -245,9 +251,20 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
             elem->expressions.push_back(new LiteralNumberNode(0));
         }
 
-        pre_statement_setup += codegen->generate_variable_assignment(temp, new ArrayNode(elem));
+        ArrayNode* arr_expr = new ArrayNode(elem);
+
+        VariableInformation* info = new VariableInformation();
+        info->first_assignment = new AssignmentNode(temp, arr_expr);
+        info->array_depth = arr_vis.depth;
+        info->type = VariableType::ARRAY;
+        info->most_recent_assignment_expr = arr_expr;
+
+        pre_statement_setup += codegen->generate_variable_declaration(temp, info) + ";\n";
         
         delete elem;
+        delete info->first_assignment;
+        delete arr_expr;
+        delete info;
 
         std::string index_var = this->codegen->generate_safe_variable_name();
         if(node->index_variable != nullptr) {
@@ -255,16 +272,45 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
         }
 
         CPPExpressionGenerator arr_gen = CPPExpressionGenerator();
+        arr_gen.variables = variables;
         node->array->accept(arr_gen);
+
+        VariableNode* var = dynamic_cast<VariableNode*>(node->array);
+        std::string temp_mapped_array;
+        if(var == nullptr) {
+            temp_mapped_array = codegen->generate_safe_variable_name();
+            VariableInformation* mapped_array_info = new VariableInformation();
+            mapped_array_info->first_assignment = new AssignmentNode(temp_mapped_array, node->array);
+            mapped_array_info->array_depth = arr_vis.depth;
+            mapped_array_info->type = VariableType::ARRAY;
+            mapped_array_info->most_recent_assignment_expr = node->array;
+
+            pre_statement_setup += codegen->generate_variable_declaration(temp, mapped_array_info);
+            delete mapped_array_info;
+        }
 
         pre_statement_setup += "for(int " + index_var + " = 0; " + index_var + " < " + std::to_string(arr_vis.size) + "; " + index_var + "++) {\n";
         pre_statement_setup += arr_gen.pre_statement_setup;
-        pre_statement_setup += "\n#define " + node->internal_variable->s + " " + arr_gen.expr + index_var + "[" + index_var + "]";
+        if(node->internal_variable != nullptr) {
+            if(var != nullptr) {
+                pre_statement_setup += "\n#define " + node->internal_variable->s + " " + var->s + "[" + index_var + "]\n";
+            }else {
+                pre_statement_setup += "\n#define " + node->internal_variable->s + " " + temp_mapped_array + "[" + index_var + "]\n";
+            }
+        }
 
         CPPExpressionGenerator action_gen = CPPExpressionGenerator();
+        action_gen.variables = variables;
         node->action->accept(action_gen);
 
+
         pre_statement_setup += action_gen.pre_statement_setup + "\n" + temp + "[" + index_var + "] = " + action_gen.expr + ";";
+        
+        if(node->internal_variable != nullptr) {
+            pre_statement_setup += "\n#undef " + node->internal_variable->s + "\n";
+        }
+
+        pre_statement_setup += "}";
 
         expr += temp;
     }
@@ -293,11 +339,7 @@ std::string CodeGenerator::generate(StatementNode* rootNode, PreprocessResult re
     }
 
     str += generate_prefix();
-    // if(result.opt_variables.has_value()) {
-    //     for(const auto & pair : (*result.opt_variables.value())) {
-    //         str += generate_variable_declaration(pair.first, pair.second) + ";\n";
-    //     }
-    // }
+
     rootNode->accept(*this);
     str += generate_suffix();
     return str;
