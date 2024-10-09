@@ -67,4 +67,6 @@ struct CPPExpressionGenerator : public ExpressionVisitor {
     void visit(BinOpNode* node) override;
     void visit(ExpressionFunctionNode* node) override;
     void visit(FunctionCallNodeExpression* node) override;
+
+    CPPExpressionGenerator* make_child();
 };

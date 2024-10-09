@@ -79,7 +79,7 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
 
     if(node->index_variable != nullptr) {
         str += visitor.pre_statement_setup;
-        str += "for(int " + node->index_variable->s + " = 0; " + node->index_variable->s + " < " + std::to_string(size_visitor.size) + "; " + node->index_variable->s + "++) {";
+        str += "for(int " + node->index_variable->s + " = 0; " + node->index_variable->s + " < " + std::to_string(size_visitor.sizes[0]) + "; " + node->index_variable->s + "++) {";
         str += "\n#define " + node->internal_variable->s + " " + visitor.expr + "[" + node->index_variable->s + "]" + "\n";
         
         node->action->accept(*this);
@@ -92,7 +92,7 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
     }else {
         str += visitor.pre_statement_setup;
         std::string idx_var = generate_safe_variable_name();
-        str += "for(int " + idx_var + " = 0; " + idx_var + " < " + std::to_string(size_visitor.size) + "; " + idx_var + "++) {";
+        str += "for(int " + idx_var + " = 0; " + idx_var + " < " + std::to_string(size_visitor.sizes[0]) + "; " + idx_var + "++) {";
         str += "\n#define " + node->internal_variable->s + " " + visitor.expr + "[" + idx_var + "]" + "\n";
         node->action->accept(*this);
         CodeBlockNode* action_block = dynamic_cast<CodeBlockNode*>(node->action);
@@ -186,7 +186,7 @@ void CPPExpressionGenerator::visit(ArrayNode *node)
         stars += "*";
     }
 
-    expr += "new double" + stars + "[" + std::to_string(size_visitor.size) + "] {";
+    expr += "new double" + stars + "[" + std::to_string(size_visitor.sizes[0]) + "] {";
 
     if(node->values != nullptr) {
         int i = 0;
@@ -227,6 +227,30 @@ void CPPExpressionGenerator::visit(BinOpNode *node)
     }
 }
 
+ArrayNode* createArrayWithDepth(int currentDepth, const ArraySizeVisitor& arr_vis) {
+    // Base case: if we are at the maximum depth, return an array filled with zeros
+    if (currentDepth == arr_vis.depth) {
+        ArrayElements* leafElements = new ArrayElements();
+
+        // Create the elements at the deepest level filled with zeros
+        for (int i = 0; i < arr_vis.sizes[currentDepth - 1]; ++i) {
+            leafElements->expressions.push_back(new LiteralNumberNode(0));
+        }
+
+        return new ArrayNode(leafElements);
+    }
+
+    // Otherwise, create an array where each element is another sub-array
+    ArrayElements* currentLevelElements = new ArrayElements();
+
+    for (int i = 0; i < arr_vis.sizes[currentDepth - 1]; ++i) {
+        // Recursively create sub-arrays
+        currentLevelElements->expressions.push_back(createArrayWithDepth(currentDepth + 1, arr_vis));
+    }
+
+    return new ArrayNode(currentLevelElements);
+}
+
 void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
 {
     TypeLocatingVisitor vis = TypeLocatingVisitor(variables, nullptr);
@@ -237,21 +261,7 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
 
     if(node->type == ExpressionFunctionType::MAP) {
         std::string temp = this->codegen->generate_safe_variable_name();
-        ArrayElements* elem = new ArrayElements();
-
-        for(int i = 0; i < arr_vis.size; i++) {
-            if(i == 0 && arr_vis.depth > 1) {
-                ArrayElements* outer = elem;
-                for(int depth = 0; depth < arr_vis.depth - 1; depth++) {
-                    outer = new ArrayElements();
-                    elem->expressions.push_back(new ArrayNode(outer));
-                }
-                continue;
-            }
-            elem->expressions.push_back(new LiteralNumberNode(0));
-        }
-
-        ArrayNode* arr_expr = new ArrayNode(elem);
+        ArrayNode* arr_expr = createArrayWithDepth(1, arr_vis);
 
         VariableInformation* info = new VariableInformation();
         info->first_assignment = new AssignmentNode(temp, arr_expr);
@@ -261,9 +271,7 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
 
         pre_statement_setup += codegen->generate_variable_declaration(temp, info) + ";\n";
         
-        delete elem;
         delete info->first_assignment;
-        delete arr_expr;
         delete info;
 
         std::string index_var = this->codegen->generate_safe_variable_name();
@@ -289,22 +297,48 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
             delete mapped_array_info;
         }
 
-        pre_statement_setup += "for(int " + index_var + " = 0; " + index_var + " < " + std::to_string(arr_vis.size) + "; " + index_var + "++) {\n";
+        pre_statement_setup += "for(int " + index_var + " = 0; " + index_var + " < " + std::to_string(arr_vis.sizes[0]) + "; " + index_var + "++) {\n";
         pre_statement_setup += arr_gen.pre_statement_setup;
-        if(node->internal_variable != nullptr) {
-            if(var != nullptr) {
-                pre_statement_setup += "\n#define " + node->internal_variable->s + " " + var->s + "[" + index_var + "]\n";
-            }else {
-                pre_statement_setup += "\n#define " + node->internal_variable->s + " " + temp_mapped_array + "[" + index_var + "]\n";
-            }
+        if(var != nullptr) {
+            pre_statement_setup += "\n#define " + node->internal_variable->s + " " + var->s + "[" + index_var + "]\n";
+        }else {
+            pre_statement_setup += "\n#define " + node->internal_variable->s + " " + temp_mapped_array + "[" + index_var + "]\n";
         }
 
-        CPPExpressionGenerator action_gen = CPPExpressionGenerator();
-        action_gen.variables = variables;
-        node->action->accept(action_gen);
+        CPPExpressionGenerator* action_gen = make_child();
+
+        VariableInformation* internal_var_info = new VariableInformation();
+        internal_var_info->array_depth = arr_vis.depth - 1;
+        internal_var_info->first_assignment = nullptr;
+        internal_var_info->most_recent_assignment_expr = arr_expr;
+        internal_var_info->type = arr_vis.depth - 1 == 0 ? VariableType::NUMBER : VariableType::ARRAY;
 
 
-        pre_statement_setup += action_gen.pre_statement_setup + "\n" + temp + "[" + index_var + "] = " + action_gen.expr + ";";
+
+        (*action_gen->variables)[node->internal_variable->s] = internal_var_info;
+        VariableInformation* index_var_info = nullptr;
+
+        if(node->index_variable != nullptr) {
+            index_var_info = new VariableInformation();
+            internal_var_info->array_depth = 0;
+            internal_var_info->first_assignment = nullptr;
+            internal_var_info->most_recent_assignment_expr = nullptr;
+            internal_var_info->type = VariableType::NUMBER;
+        }
+        node->action->accept(*action_gen);
+
+        // so theres a memory leak here, as far as im aware. I dont know how to fix it
+        // i also dont have time. so...
+        delete arr_expr;
+        delete internal_var_info;
+        if(index_var_info != nullptr) {
+            delete index_var_info;
+        }
+
+        pre_statement_setup += action_gen->pre_statement_setup + "\n" + temp + "[" + index_var + "] = " + action_gen->expr + ";";
+
+        delete action_gen->variables;
+        delete action_gen;
         
         if(node->internal_variable != nullptr) {
             pre_statement_setup += "\n#undef " + node->internal_variable->s + "\n";
@@ -328,6 +362,19 @@ void CPPExpressionGenerator::visit(FunctionCallNodeExpression *node)
     }
 
     expr += ")";
+}
+
+CPPExpressionGenerator *CPPExpressionGenerator::make_child()
+{
+    CPPExpressionGenerator* gen = new CPPExpressionGenerator();
+
+    gen->variables = new VariableContext();
+    for(auto v : *variables) {
+        (*gen->variables)[v.first] = v.second;
+    }
+    gen->codegen = codegen;
+
+    return gen;
 }
 
 std::string CodeGenerator::generate(StatementNode* rootNode, PreprocessResult result)

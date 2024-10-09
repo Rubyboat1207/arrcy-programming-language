@@ -106,7 +106,7 @@ struct TypeLocatingVisitor : ExpressionVisitor {
 
 struct ArraySizeVisitor : DefaultExpressionVisitor {
     int depth = 0;
-    int size = 0;
+    int sizes[8] = { 0,0,0,0,0,0,0,0 };
     ExpressionNode* first_element;
     VariableContext* variables;
     void visit(ArrayNode* node) override;

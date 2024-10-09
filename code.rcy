@@ -1,12 +1,18 @@
 x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-z = (x)#value{
-    value * 2
+
+md_arr = [
+    [1, 2],
+    [3, 4]
+];
+
+please_work = (md_arr)#value {
+    (value)#iv {
+        iv - 1
+    }
 };
 
-test = (z)#value, index {
-    value * x[index]
-};
-
-(test)*value {
-    print(value)
+(please_work)*value {
+    (value)*inner_v {
+        print(inner_v);
+    };
 };

@@ -358,8 +358,11 @@ TypeLocatingVisitor TypeLocatingVisitor::makeChild()
 
 void ArraySizeVisitor::visit(ArrayNode *node)
 {
-    depth++;
-    size = node->values->expressions.size();
+    int size = node->values->expressions.size();
+    if(depth == 7) {
+        return;
+    }
+    sizes[depth++] = size;
     if(size == 0) {
         return;
     }
@@ -386,6 +389,7 @@ void ArraySizeVisitor::visit(VariableNode *node)
 
     if(variable->most_recent_assignment_expr == nullptr) {
         if(variable->first_assignment == nullptr) {
+            depth = variable->array_depth;
             return;
         }
         variable->first_assignment->value->accept(*this);
