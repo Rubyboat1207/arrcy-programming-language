@@ -3,3 +3,6 @@ bin/
 .vscode/
 out.cpp
 out.exe
+code_rcy.exe
+benchmarks/*.exe
+benchmarks/data.txt

@@ -29,6 +29,7 @@ void scan_string(const char* str)
 "+"                { return PLUS;}
 "-"                { return MINUS;}
 "*"                { return STAR;}
+"%"                { return MOD;}
 "#"                { return HASH;}
 "("                { return LPAREN;}
 ")"                { return RPAREN;}

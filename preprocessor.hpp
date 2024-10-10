@@ -35,6 +35,8 @@ struct VariableInformation {
     ExpressionNode* most_recent_assignment_expr;
     bool is_ever_read = false;
     int array_depth = 0;
+    int opt_array_sizes[8] = { 0,0,0,0,0,0,0,0 };
+    bool uses_array_size = false;
 
     VariableInformation(VariableInformation* other) {
         type = other->type;
@@ -123,6 +125,7 @@ struct FunctionTypeData {
 namespace preprocessor {
     void addToFunctionData(std::string name, FunctionTypeData data);
     PreprocessResult preprocess(StatementNode* root);
+    PreprocessResult preprocess_with_ctx(StatementNode* root, VariableContext* existing_context);
     PreprocessResult processFunctionData(VariableContext* variables, FunctionCallData* node);
     std::map<std::string, FunctionTypeData> getFunctions();
 }

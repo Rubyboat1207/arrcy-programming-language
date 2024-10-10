@@ -54,21 +54,36 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
     size_visitor.variables = global_context;
     node->array->accept(size_visitor);
 
-    TypeLocatingVisitor type_visitor{global_context, nullptr};
-    if(size_visitor.first_element == nullptr) {
-        return;
-    }
-    size_visitor.first_element->accept(type_visitor);
-
     VariableContext* inner_context = new VariableContext();
     inner_context->insert(global_context->begin(), global_context->end());
-    
-    if(type_visitor.ret_value == VariableType::NUMBER) {
-        inner_context->insert({node->internal_variable->s, new VariableInformation(VariableType::NUMBER, new AssignmentNode(node->internal_variable->s, size_visitor.first_element))});
+    VariableInformation* var_info;
+    if(size_visitor.depth == 1) {
+        var_info = new VariableInformation(VariableType::NUMBER, new AssignmentNode(node->internal_variable->s, size_visitor.first_element));
     }else {
-        auto var_info = new VariableInformation(VariableType::ARRAY, new AssignmentNode(node->internal_variable->s, size_visitor.first_element));
-        var_info->most_recent_assignment_expr = size_visitor.first_element;
-        inner_context->insert({node->internal_variable->s, var_info});
+        var_info = new VariableInformation(VariableType::ARRAY, nullptr);
+        var_info->array_depth = size_visitor.depth - 1;
+        for(int i = 1; i < size_visitor.depth; i++) {
+            if(i == 8) {
+                break;
+            }
+            var_info->opt_array_sizes[i - 1] = size_visitor.sizes[i];
+        }
+        var_info->uses_array_size = true;
+    }
+
+    var_info->most_recent_assignment_expr = nullptr;
+    inner_context->insert({node->internal_variable->s, var_info});
+    auto pp_result = preprocessor::preprocess_with_ctx(node->action, inner_context);
+
+    std::vector<VariableInformation*> added_info{};
+
+    if(pp_result.opt_variables.has_value()) {
+        for(const auto v : *pp_result.opt_variables.value()) {
+            if(inner_context->find(v.first) == inner_context->end()) {
+                added_info.push_back(v.second);
+                inner_context->insert(v);
+            }
+        }
     }
 
     VariableContext *old_context = global_context;
@@ -76,6 +91,7 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
     global_context = inner_context;
 
     size_visitor.variables = global_context;
+
 
     if(node->index_variable != nullptr) {
         str += visitor.pre_statement_setup;
@@ -104,6 +120,9 @@ void CPPCodeGenerator::generate_foreach_loop(StatementFunctionNode* node)
     
     
     global_context = old_context;
+    for(const auto added : added_info) {
+        delete added;
+    }
     delete inner_context;
     
 
@@ -151,9 +170,14 @@ std::string CPPCodeGenerator::generate_element_assignment(ElementAssignmentNode 
     indexVisitor.codegen = this;
     node->value->accept(valueVisitor);
 
+    auto assigneeVisitor = CPPExpressionGenerator();
+    assigneeVisitor.variables = global_context;
+    assigneeVisitor.codegen = this;
+    node->assignee->accept(assigneeVisitor);
+
     // intentionally ignore pre statement setup here for index because it should never be an array.
 
-    std::string str = valueVisitor.pre_statement_setup + node->name + "[" + indexVisitor.expr + "] " + "=" + valueVisitor.expr;
+    std::string str = valueVisitor.pre_statement_setup + assigneeVisitor.pre_statement_setup + assigneeVisitor.expr + "[" + indexVisitor.expr + "] " + "=" + valueVisitor.expr;
 
     return str;
 }
@@ -212,6 +236,7 @@ void CPPExpressionGenerator::visit(BinOpNode *node)
         case ExpressionOperation::SUBTRACT:  expr += "-"; break;
         case ExpressionOperation::DIVIDE:    expr += "/"; break;
         case ExpressionOperation::MULTIPLY:  expr += "*"; break;
+        case ExpressionOperation::MOD:       expr += "%"; break;
         case ExpressionOperation::LT:        expr += "<"; break;      // Less than
         case ExpressionOperation::GT:        expr += ">"; break;      // Greater than
         case ExpressionOperation::LTEQ:      expr += "<="; break;    // Less than or equal to
@@ -310,7 +335,7 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
         VariableInformation* internal_var_info = new VariableInformation();
         internal_var_info->array_depth = arr_vis.depth - 1;
         internal_var_info->first_assignment = nullptr;
-        internal_var_info->most_recent_assignment_expr = arr_expr;
+        internal_var_info->most_recent_assignment_expr = arr_expr->values->expressions[0];
         internal_var_info->type = arr_vis.depth - 1 == 0 ? VariableType::NUMBER : VariableType::ARRAY;
 
 

@@ -25,7 +25,11 @@ void addToFunctionData(std::string name, FunctionTypeData data)
     functionData[name] = data;
 }
 
-PreprocessResult preprocess(StatementNode *root)
+PreprocessResult preprocess(StatementNode *root) {
+    return preprocess_with_ctx(root, nullptr);
+}
+
+PreprocessResult preprocess_with_ctx(StatementNode *root, VariableContext* existing_context)
 {
     PreprocessResult result = PreprocessResult();
 
@@ -37,6 +41,10 @@ PreprocessResult preprocess(StatementNode *root)
     }
 
     VariableContext* variables = new VariableContext();
+
+    if(existing_context != nullptr) {
+        variables->insert(existing_context->begin(), existing_context->end());
+    }
 
     for(auto stmt : code_block->stmts) {
         AssignmentNode* assignment = dynamic_cast<AssignmentNode*>(stmt);
@@ -372,7 +380,13 @@ void ArraySizeVisitor::visit(ArrayNode *node)
 
 void ArraySizeVisitor::visit(BinOpNode *node)
 {
-    //ignore
+    if(node->operation == ExpressionOperation::ACCESS) {
+        node->a->accept(*this);
+        depth -= 1;
+        for(int i = 1; i < 8; i++) {
+            sizes[i - 1] = sizes[i];
+        }
+    }
 }
 
 void ArraySizeVisitor::visit(VariableNode *node)
@@ -390,6 +404,11 @@ void ArraySizeVisitor::visit(VariableNode *node)
     if(variable->most_recent_assignment_expr == nullptr) {
         if(variable->first_assignment == nullptr) {
             depth = variable->array_depth;
+            if(variable->uses_array_size) {
+                for(int i = 0; i < 8; i++) {
+                    sizes[i] = variable->opt_array_sizes[i];
+                }
+            }
             return;
         }
         variable->first_assignment->value->accept(*this);
@@ -397,6 +416,11 @@ void ArraySizeVisitor::visit(VariableNode *node)
         variable->most_recent_assignment_expr->accept(*this);
     }
     depth = variable->array_depth;
+    if(variable->uses_array_size) {
+        for(int i = 0; i < 8; i++) {
+            sizes[i] = variable->opt_array_sizes[i];
+        }
+    }
 }
 
 void ArraySizeVisitor::visit(ExpressionFunctionNode *node)

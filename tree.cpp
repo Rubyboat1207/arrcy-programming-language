@@ -26,6 +26,7 @@ std::ostream& operator<<(std::ostream& os, ExpressionOperation op) {
         case ExpressionOperation::SUBTRACT:  return os << "-";
         case ExpressionOperation::DIVIDE:    return os << "/";
         case ExpressionOperation::MULTIPLY:  return os << "*";
+        case ExpressionOperation::MOD:       return os << "%";
         case ExpressionOperation::LT:        return os << "<";      // Less than
         case ExpressionOperation::GT:        return os << ">";      // Greater than
         case ExpressionOperation::LTEQ:      return os << "<=";    // Less than or equal to
@@ -276,7 +277,7 @@ std::ostream& FunctionCallNodeStatement::print(std::ostream &os) const {
 
 std::ostream &ElementAssignmentNode::print(std::ostream &os) const
 {
-    return os << name << "[" << *index << "] = " << *value;
+    return os << *assignee << "[" << *index << "] = " << *value;
 }
 
 void ElementAssignmentNode::accept(NodeVisitor &visitor)

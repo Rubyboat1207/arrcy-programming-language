@@ -56,11 +56,13 @@ struct AssignmentNode : public StatementNode {
     
 };
 
-struct ElementAssignmentNode : public AssignmentNode {
+struct ElementAssignmentNode : public StatementNode {
     std::ostream& print(std::ostream& os) const override;
     ExpressionNode* index;
+    ExpressionNode* assignee;
+    ExpressionNode* value;
 
-    ElementAssignmentNode(std::string name, ExpressionNode* value, ExpressionNode* index) : AssignmentNode(name, value), index(index) {}
+    ElementAssignmentNode(ExpressionNode* assignee, ExpressionNode* value, ExpressionNode* index) : index(index), assignee(assignee), value(value) {}
     void accept(NodeVisitor& visitor) override;
 };
 // exprs
@@ -75,6 +77,7 @@ enum class ExpressionOperation : uint8_t {
     SUBTRACT = 0b10000001,
     DIVIDE   = 0b10000010,
     MULTIPLY = 0b10000011,
+    MOD      = 0b10000100,
 
     // boolean ops (second to last bit set)
     LT       = 0b01000000,

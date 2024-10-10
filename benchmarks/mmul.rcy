@@ -41,14 +41,8 @@ result = [
     (matrix_b[0])*col, col_idx {
         sum = 0;
         (matrix_a[0])*inner_item, inner_idx {
-            sum += matrix_a[row_idx][inner_idx] * matrix_b[inner_idx][col_idx];
+            sum = sum + matrix_a[row_idx][inner_idx] * matrix_b[inner_idx][col_idx];
         };
         result[row_idx][col_idx] = sum;
-    };
-};
-
-(result)*r {
-    (r)*item{
-        print(item);
     };
 };

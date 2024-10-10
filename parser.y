@@ -34,7 +34,7 @@ StatementNode* root;
 %token <float_val> NUMBER
 %token <str> IDENT
 %token END_OF_FILE ASSIGN LBRACKET RBRACKET COMMA LPAREN RPAREN LESS_THAN GREATER_THAN LCURLY RCURLY EQUALITY INEQUALITY
-%token SLASH PLUS MINUS STAR HASH
+%token SLASH PLUS MINUS STAR HASH MOD
 %type <number> number_literal
 %type <stmt> statement for_each statements
 %type <expr> expression array_access expression_function
@@ -78,6 +78,9 @@ modification_assignment:
     } |
     STAR ASSIGN expression {
         $$ = new ModificationAssign(ExpressionOperation::MULTIPLY, $3);
+    } |
+    MOD ASSIGN expression {
+        $$ = new ModificationAssign(ExpressionOperation::MOD, $3);
     }
     ;
 
@@ -85,11 +88,11 @@ statement:
     IDENT ASSIGN expression {
         $$ = new AssignmentNode($1, $3);
     } |
-    IDENT LBRACKET expression RBRACKET ASSIGN expression {
+    expression LBRACKET expression RBRACKET ASSIGN expression {
         $$ = new ElementAssignmentNode($1, $6, $3);
     } |
-    IDENT LBRACKET expression RBRACKET modification_assignment {
-        $$ = new ElementAssignmentNode($1, new BinOpNode(new BinOpNode(new VariableNode($1), $3, ExpressionOperation::ACCESS), $5->value, $5->operation), $3);
+    expression LBRACKET expression RBRACKET modification_assignment {
+        $$ = new ElementAssignmentNode($1, new BinOpNode(new BinOpNode($1, $3, ExpressionOperation::ACCESS), $5->value, $5->operation), $3);
     } |
     IDENT modification_assignment {
         $$ = new AssignmentNode($1, new BinOpNode(new VariableNode($1), $2->value, $2->operation));
@@ -128,8 +131,8 @@ expression:
     ;
 
 array_access: 
-    IDENT LBRACKET expression RBRACKET { 
-        $$ = new BinOpNode(new VariableNode($1), $3, ExpressionOperation::ACCESS);
+    expression LBRACKET expression RBRACKET { 
+        $$ = new BinOpNode($1, $3, ExpressionOperation::ACCESS);
     }
     ;
 
@@ -185,6 +188,9 @@ binary_operation:
         $$ = new BinOpNode($1, $3, ExpressionOperation::SUBTRACT);
     } |
     expression STAR expression { 
+        $$ = new BinOpNode($1, $3, ExpressionOperation::MULTIPLY);
+    } |
+    expression MOD expression { 
         $$ = new BinOpNode($1, $3, ExpressionOperation::MULTIPLY);
     } |
     expression LESS_THAN expression { 
