@@ -1,4 +1,4 @@
-let array = [1, 2, 3, 4, 5];
+let array = Array.from({length: 100}, (_, i) => i + 1);
 let sum = 0;
 array.forEach((item) => {
     sum += item;

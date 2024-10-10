@@ -40,7 +40,8 @@ if __name__ == "__main__":
         "cpp": [f"./{test}_cpp.exe"],  # Path to C++ executable
         "cs": [f"./{test}_cs.exe"],  # Path to C++ executable
         "rcy": [f"./{test}_rcy.exe"],  # Path to rcy executable
-        "node": ["node", f"./{test}.js"]  # Path to Node.js script
+        "nodejs": ["node", f"./{test}.js"],  # Path to Node.js script
+        # "deno": ["deno", f"./{test}.js"]
     }
 
     iterations = int(input("Enter the number of iterations: "))

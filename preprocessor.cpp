@@ -18,6 +18,7 @@ std::map<std::string, FunctionTypeData> functionData = {
     {"min", FunctionTypeData{{VariableType::NUMBER, VariableType::NUMBER}, VariableType::NUMBER}},
     {"max", FunctionTypeData{{VariableType::NUMBER, VariableType::NUMBER}, VariableType::NUMBER}},
     {"print", FunctionTypeData{{VariableType::ANY}, VariableType::VOID}},
+    {"array", FunctionTypeData{{VariableType::NUMBER}, VariableType::ARRAY}}
 };
 
 void addToFunctionData(std::string name, FunctionTypeData data)
@@ -211,6 +212,12 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
 
     node->array->accept(child_array_validator);
 
+    if(child_array_validator.errored) {
+        errored = true;
+        result->messages.insert(result->messages.end(), child_array_validator.result->messages.begin(), child_array_validator.result->messages.end());
+        return;
+    }
+
     if(child_array_validator.ret_value == VariableType::NUMBER) {
         errored = true;
         result->messages.push_back(PreprocessorMessage("Input to expression function node was not an array.", PreprocessorMessageType::ERROR));
@@ -264,7 +271,9 @@ void TypeLocatingVisitor::visit(ExpressionFunctionNode *node)
 void TypeLocatingVisitor::visit(FunctionCallNodeExpression *node)
 {
     auto msgs = preprocessor::processFunctionData(variables, node).messages;
-    result->messages.insert(result->messages.end(), msgs.begin(), msgs.end());
+    if(result != nullptr) {
+        result->messages.insert(result->messages.end(), msgs.begin(), msgs.end());
+    }
 
     if(msgs.size() > 0) {
         errored = true;
@@ -277,9 +286,15 @@ void TypeLocatingVisitor::visit(FunctionCallNodeExpression *node)
         if((*fn).second.returnType == VariableType::VOID) {
             result->messages.push_back(PreprocessorMessage("Function " + node->function + " is not allowed in an expression.", PreprocessorMessageType::ERROR));
             errored = true;
-            return;
         }
-        ret_value = (*fn).second.returnType;
+        if(node->function == "array") {
+            if(dynamic_cast<LiteralNumberNode*>(node->parameters->expressions[0]) == nullptr) {
+                result->messages.push_back(PreprocessorMessage("Array size initializer must have a constant value as param.", PreprocessorMessageType::ERROR));
+                errored = true;
+            }
+        }
+        if(!errored)
+            ret_value = (*fn).second.returnType;
     }else {
         errored = true;
     }
@@ -411,7 +426,9 @@ void ArraySizeVisitor::visit(VariableNode *node)
             }
             return;
         }
-        variable->first_assignment->value->accept(*this);
+        if(variable->type != VariableType::NUMBER) {
+            variable->first_assignment->value->accept(*this);
+        }
     }else {
         variable->most_recent_assignment_expr->accept(*this);
     }
@@ -426,4 +443,11 @@ void ArraySizeVisitor::visit(VariableNode *node)
 void ArraySizeVisitor::visit(ExpressionFunctionNode *node)
 {
     node->array->accept(*this);
+}
+
+void ArraySizeVisitor::visit(FunctionCallNodeExpression *node)
+{
+    if(node->function == "array") {
+        sizes[depth++] = (int) dynamic_cast<LiteralNumberNode*>(node->parameters->expressions[0])->value;
+    }
 }

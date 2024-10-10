@@ -52,7 +52,7 @@ struct VariableInformation {
 using VariableContext = std::map<std::string, VariableInformation*>;
 
 struct PreprocessResult {
-    std::vector<PreprocessorMessage> messages;
+    std::vector<PreprocessorMessage> messages{};
     std::optional<VariableContext*> opt_variables;
 };
 
@@ -115,6 +115,7 @@ struct ArraySizeVisitor : DefaultExpressionVisitor {
     void visit(BinOpNode *node) override;
     void visit(VariableNode *node) override;
     void visit(ExpressionFunctionNode *node) override;
+    void visit(FunctionCallNodeExpression *node) override;
 };
 
 struct FunctionTypeData {

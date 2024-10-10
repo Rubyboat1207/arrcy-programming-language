@@ -1,6 +1,8 @@
-array = [1, 2, 3, 4, 5];
+arr = (array(100))#v, i {
+    i
+};
 sum = 0;
-(array)*item, idx {
+(arr)*item, idx {
     sum = sum + item;
 };
 print(sum);

@@ -2,7 +2,8 @@
 #include <vector>
 
 int main() {
-    std::vector<int> array = {1, 2, 3, 4, 5};
+    std::vector<int> array(100);
+    for (int i = 0; i < 100; ++i) array[i] = i + 1;
     int sum = 0;
     for (auto item : array) {
         sum += item;

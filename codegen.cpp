@@ -318,7 +318,7 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
             mapped_array_info->type = VariableType::ARRAY;
             mapped_array_info->most_recent_assignment_expr = node->array;
 
-            pre_statement_setup += codegen->generate_variable_declaration(temp, mapped_array_info);
+            pre_statement_setup += codegen->generate_variable_declaration(temp_mapped_array, mapped_array_info) + ";\n";
             delete mapped_array_info;
         }
 
@@ -336,7 +336,7 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
         internal_var_info->array_depth = arr_vis.depth - 1;
         internal_var_info->first_assignment = nullptr;
         internal_var_info->most_recent_assignment_expr = arr_expr->values->expressions[0];
-        internal_var_info->type = arr_vis.depth - 1 == 0 ? VariableType::NUMBER : VariableType::ARRAY;
+        internal_var_info->type = (arr_vis.depth - 1 == 0) ? VariableType::NUMBER : VariableType::ARRAY;
 
 
 
@@ -345,10 +345,10 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
 
         if(node->index_variable != nullptr) {
             index_var_info = new VariableInformation();
-            internal_var_info->array_depth = 0;
-            internal_var_info->first_assignment = nullptr;
-            internal_var_info->most_recent_assignment_expr = nullptr;
-            internal_var_info->type = VariableType::NUMBER;
+            index_var_info->array_depth = 0;
+            index_var_info->first_assignment = nullptr;
+            index_var_info->most_recent_assignment_expr = nullptr;
+            index_var_info->type = VariableType::NUMBER;
         }
         node->action->accept(*action_gen);
 
@@ -377,6 +377,24 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
 
 void CPPExpressionGenerator::visit(FunctionCallNodeExpression *node)
 {
+    if(node->function == "array") {
+        int size = (int) ((LiteralNumberNode*) (node->parameters->expressions[0]))->value;
+        CPPExpressionGenerator expr_gen{};
+        expr_gen.codegen = codegen;
+        expr_gen.variables = variables;
+
+        ArrayNode* arr = new ArrayNode(new ArrayElements());
+
+        arr->values->expressions.resize(size, new LiteralNumberNode(0));
+
+        arr->accept(expr_gen);
+        
+        expr += expr_gen.expr;
+
+        delete arr->values;
+        delete arr;
+        return;
+    }
     expr += node->function + "(";
     
     for(auto entry : node->parameters->expressions) {

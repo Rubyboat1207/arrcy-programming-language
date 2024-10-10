@@ -22,7 +22,7 @@ protected:
     virtual void generate_foreach_loop(StatementFunctionNode* node) = 0;
     virtual std::string generate_compiler_foreach(CodeBlockNode* internal, std::string index_name, int index_count) = 0;
     virtual std::string generate_safe_variable_name() = 0;
-    std::string generate_function(FunctionCallNodeStatement* callData);
+    virtual std::string generate_function(FunctionCallNodeStatement* callData);
 
     virtual std::string generate_print_statement(ArrayElements* callData) = 0;
 };
