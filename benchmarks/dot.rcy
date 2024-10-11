@@ -1,15 +1,15 @@
-array_a = (array(100000))#i {
+array_a = (array(100000))#v, i {
     i + 1
 };
 
-array_b = (array(100000))#i {
+array_b = (array(100000))#v, i {
     100000 - i
 };
 
 sum = 0;
 
 (array_a)*value_a, idx {
-    sum = sum + value_a * array_b[idx];
+    sum += value_a * array_b[idx];
 };
 
 print(sum);

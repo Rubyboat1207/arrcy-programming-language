@@ -212,9 +212,32 @@ void CPPExpressionGenerator::visit(ArrayNode *node)
 
     expr += "new double" + stars + "[" + std::to_string(size_visitor.sizes[0]) + "] {";
 
+
+
+    
+    
     if(node->values != nullptr) {
-        int i = 0;
+        bool all_zeros = true;
         int size = node->values->expressions.size();
+
+        for(int z = 0; z < size; z++) {
+            LiteralNumberNode* n = dynamic_cast<LiteralNumberNode*>(node->values->expressions[z]);
+            if(n == nullptr) {
+                all_zeros = false;
+                break;
+            }
+
+            if(n->value != 0) {
+                all_zeros = false;
+                break;
+            }
+        }
+
+        if(all_zeros) {
+            expr += " 0 }";
+            return;
+        }
+
         for(int i = 0; i < size; i++) {
             auto element = node->values->expressions[i];
             element->accept(*this);
@@ -378,21 +401,25 @@ void CPPExpressionGenerator::visit(ExpressionFunctionNode *node)
 void CPPExpressionGenerator::visit(FunctionCallNodeExpression *node)
 {
     if(node->function == "array") {
-        int size = (int) ((LiteralNumberNode*) (node->parameters->expressions[0]))->value;
-        CPPExpressionGenerator expr_gen{};
-        expr_gen.codegen = codegen;
-        expr_gen.variables = variables;
+        int size = (int) round(((LiteralNumberNode*) (node->parameters->expressions[0]))->value);
+        // CPPExpressionGenerator expr_gen{};
+        // expr_gen.codegen = codegen;
+        // expr_gen.variables = variables;
 
-        ArrayNode* arr = new ArrayNode(new ArrayElements());
+        // ArrayNode* arr = new ArrayNode(new ArrayElements());
 
-        arr->values->expressions.resize(size, new LiteralNumberNode(0));
+        // arr->values->expressions.resize(size, new LiteralNumberNode(0));
 
-        arr->accept(expr_gen);
+        // arr->accept(expr_gen);
+
+        expr += "new double[";
+
+        expr += std::to_string(size);
         
-        expr += expr_gen.expr;
+        expr += "] { 0 }";
 
-        delete arr->values;
-        delete arr;
+        // delete arr->values;
+        // delete arr;
         return;
     }
     expr += node->function + "(";
